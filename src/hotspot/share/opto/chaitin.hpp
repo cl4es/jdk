@@ -415,8 +415,8 @@ class PhaseChaitin : public PhaseRegAlloc {
   uint _simplified;             // Linked list head of simplified LRGs
 
   // Helper functions for Split()
-  uint split_DEF(Node *def, Block *b, int loc, uint max, Node **Reachblock, Node **debug_defs, GrowableArray<uint> splits, int slidx );
-  uint split_USE(MachSpillCopyNode::SpillType spill_type, Node *def, Block *b, Node *use, uint useidx, uint max, bool def_down, bool cisc_sp, GrowableArray<uint> splits, int slidx );
+  uint split_DEF(Node *def, Block *b, int loc, uint max, Node **Reachblock, Node **debug_defs, GrowableArray<uint>* splits, int slidx );
+  uint split_USE(MachSpillCopyNode::SpillType spill_type, Node *def, Block *b, Node *use, uint useidx, uint max, bool def_down, bool cisc_sp, GrowableArray<uint>* splits, int slidx );
 
   //------------------------------clone_projs------------------------------------
   // After cloning some rematerialized instruction, clone any MachProj's that
@@ -434,7 +434,7 @@ class PhaseChaitin : public PhaseRegAlloc {
     return found_projs;
   }
 
-  Node *split_Rematerialize(Node *def, Block *b, uint insidx, uint &maxlrg, GrowableArray<uint> splits,
+  Node *split_Rematerialize(Node *def, Block *b, uint insidx, uint &maxlrg, GrowableArray<uint>* splits,
                             int slidx, uint *lrg2reach, Node **Reachblock, bool walkThru);
   // True if lidx is used before any real register is def'd in the block
   bool prompt_use( Block *b, uint lidx );

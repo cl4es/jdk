@@ -1151,7 +1151,7 @@ Block* PhaseCFG::hoist_to_cheaper_block(Block* LCA, Block* early, Node* self) {
   // single register.  Hoisting stretches the live range of the
   // single register and may force spilling.
   MachNode* mach = self->is_Mach() ? self->as_Mach() : NULL;
-  if (mach && mach->out_RegMask().is_bound1() && mach->out_RegMask().is_NotEmpty())
+  if (mach && mach->out_RegMask().is_bound1())
     in_latency = true;
 
 #ifndef PRODUCT

@@ -143,10 +143,11 @@ void PhaseChaitin::insert_proj( Block *b, uint i, Node *spill, uint maxlrg ) {
 // two helper routines, one for Split DEFS (insert after instruction),
 // one for Split USES (insert before instruction).  DEF insertion
 // happens inside Split, where the Leaveblock array is updated.
-uint PhaseChaitin::split_DEF( Node *def, Block *b, int loc, uint maxlrg, Node **Reachblock, Node **debug_defs, GrowableArray<uint> splits, int slidx ) {
+uint PhaseChaitin::split_DEF( Node *def, Block *b, int loc, uint maxlrg, Node **Reachblock, Node **debug_defs,
+    GrowableArray<uint>* splits, int slidx) {
 #ifdef ASSERT
   // Increment the counter for this lrg
-  splits.at_put(slidx, splits.at(slidx)+1);
+  splits->at_put(slidx, splits->at(slidx)+1);
 #endif
   // If we are spilling the memory op for an implicit null check, at the
   // null check location (ie - null check is in HRP block) we need to do
@@ -183,10 +184,11 @@ uint PhaseChaitin::split_DEF( Node *def, Block *b, int loc, uint maxlrg, Node **
 //------------------------------split_USE--------------------------------------
 // Splits at uses can involve redeffing the LRG, so no CISC Spilling there.
 // Debug uses want to know if def is already stack enabled.
-uint PhaseChaitin::split_USE(MachSpillCopyNode::SpillType spill_type, Node *def, Block *b, Node *use, uint useidx, uint maxlrg, bool def_down, bool cisc_sp, GrowableArray<uint> splits, int slidx ) {
+uint PhaseChaitin::split_USE(MachSpillCopyNode::SpillType spill_type, Node *def, Block *b, Node *use, uint useidx,
+    uint maxlrg, bool def_down, bool cisc_sp, GrowableArray<uint>* splits, int slidx) {
 #ifdef ASSERT
   // Increment the counter for this lrg
-  splits.at_put(slidx, splits.at(slidx)+1);
+  splits->at_put(slidx, splits->at(slidx)+1);
 #endif
 
   // Some setup stuff for handling debug node uses
@@ -312,7 +314,7 @@ Node* clone_node(Node* def, Block *b, Compile* C) {
 //------------------------------split_Rematerialize----------------------------
 // Clone a local copy of the def.
 Node *PhaseChaitin::split_Rematerialize(Node *def, Block *b, uint insidx, uint &maxlrg,
-                                        GrowableArray<uint> splits, int slidx, uint *lrg2reach,
+                                        GrowableArray<uint>* splits, int slidx, uint *lrg2reach,
                                         Node **Reachblock, bool walkThru) {
   // The input live ranges will be stretched to the site of the new
   // instruction.  They might be stretched past a def and will thus
@@ -405,7 +407,7 @@ Node *PhaseChaitin::split_Rematerialize(Node *def, Block *b, uint insidx, uint &
   insert_proj( b, insidx, spill, maxlrg++ );
 #ifdef ASSERT
   // Increment the counter for this lrg
-  splits.at_put(slidx, splits.at(slidx)+1);
+  splits->at_put(slidx, splits->at(slidx)+1);
 #endif
   // See if the cloned def kills any flags, and copy those kills as well
   uint i = insidx+1;
@@ -489,6 +491,7 @@ bool PhaseChaitin::prompt_use( Block *b, uint lidx ) {
 // USES: If USE is in HRP, split at use to leave main LRG on stack.
 //       Else, hoist LRG back up to register only (ie - split is also DEF)
 // We will compute a new maxlrg as we go
+
 uint PhaseChaitin::Split(uint maxlrg, ResourceArea* split_arena) {
   Compile::TracePhase tp("regAllocSplit", &timers[_t_regAllocSplit]);
 
@@ -506,7 +509,7 @@ uint PhaseChaitin::Split(uint maxlrg, ResourceArea* split_arena) {
   GrowableArray<uint>  lidxs(split_arena, maxlrg, 0, 0);
 
   // Array of counters to count splits per live range
-  GrowableArray<uint>  splits(split_arena, maxlrg, 0, 0);
+  GrowableArray<uint>*  splits = PRODUCT_ONLY(NULL) NOT_PRODUCT(new GrowableArray(split_arena, maxlrg, 0, 0));
 
 #define NEW_SPLIT_ARRAY(type, size)\
   (type*) split_arena->allocate_bytes((size) * sizeof(type))
@@ -526,7 +529,7 @@ uint PhaseChaitin::Split(uint maxlrg, ResourceArea* split_arena) {
       lidxs.append(bidx);
 #ifdef ASSERT
       // Initialize the split counts to zero
-      splits.append(0);
+      splits->append(0);
 #endif
       if (PrintOpto && WizardMode && lrgs(bidx)._was_spilled1) {
         tty->print_cr("Warning, 2nd spill of L%d",bidx);
@@ -1025,15 +1028,15 @@ uint PhaseChaitin::Split(uint maxlrg, ResourceArea* split_arena) {
             assert(inpidx < oopoff, "cannot use-split oop map info");
 
             bool dup = UPblock[slidx];
-            bool uup = umask.is_UP();
 
             // Need special logic to handle bound USES. Insert a split at this
             // bound use if we can't rematerialize the def, or if we need the
             // split to form a misaligned pair.
+            uint usize = umask.Size();
             if( !umask.is_AllStack() &&
-                (int)umask.Size() <= lrgs(useidx).num_regs() &&
+                (int)usize <= lrgs(useidx).num_regs() &&
                 (!def->rematerialize() ||
-                 (!is_vect && umask.is_misaligned_pair()))) {
+                 (!is_vect && usize == 2 && !umask.is_aligned_pairs()))) {
               // These need a Split regardless of overlap or pressure
               // SPLIT - NO DEF - NO CISC SPILL
               maxlrg = split_USE(MachSpillCopyNode::Bound, def,b,n,inpidx,maxlrg,dup,false, splits,slidx);
@@ -1045,6 +1048,7 @@ uint PhaseChaitin::Split(uint maxlrg, ResourceArea* split_arena) {
               continue;
             }
 
+            bool uup = umask.is_UP();
             if (UseFPUForSpilling && n->is_MachCall() && !uup && !dup ) {
               // The use at the call can force the def down so insert
               // a split before the use to allow the def more freedom.
@@ -1423,7 +1427,7 @@ uint PhaseChaitin::Split(uint maxlrg, ResourceArea* split_arena) {
   // Issue a warning if splitting made no progress
   int noprogress = 0;
   for (slidx = 0; slidx < spill_cnt; slidx++) {
-    if (PrintOpto && WizardMode && splits.at(slidx) == 0) {
+    if (PrintOpto && WizardMode && splits->at(slidx) == 0) {
       tty->print_cr("Failed to split live range %d", lidxs.at(slidx));
       //BREAKPOINT;
     }
