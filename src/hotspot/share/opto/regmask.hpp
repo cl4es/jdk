@@ -190,12 +190,12 @@ class RegMask {
   // Verify watermarks are sane, i.e., within bounds and that no
   // register words below or above the watermarks have bits set.
   bool valid_watermarks() const {
-    assert(_hwm >= 0 && _hwm < _RM_SIZE, "_hwm out of range: %d", _hwm);
-    assert(_lwm >= 0 && _lwm < _RM_SIZE, "_lwm out of range: %d", _lwm);
-    for (int i = 0; i < _lwm; i++) {
+    assert(_hwm < _RM_SIZE, "_hwm out of range: %d", _hwm);
+    assert(_lwm < _RM_SIZE, "_lwm out of range: %d", _lwm);
+    for (unsigned i = 0; i < _lwm; i++) {
       assert(_RM_UL[i] == 0, "_lwm too high: %d regs at: %d", _lwm, i);
     }
-    for (int i = _hwm + 1; i < _RM_SIZE; i++) {
+    for (unsigned i = _hwm + 1; i < _RM_SIZE; i++) {
       assert(_RM_UL[i] == 0, "_hwm too low: %d regs at: %d", _hwm, i);
     }
     return true;
