@@ -509,7 +509,7 @@ uint PhaseChaitin::Split(uint maxlrg, ResourceArea* split_arena) {
   GrowableArray<uint>  lidxs(split_arena, maxlrg, 0, 0);
 
   // Array of counters to count splits per live range
-  GrowableArray<uint>*  splits = PRODUCT_ONLY(NULL) NOT_PRODUCT(new GrowableArray<uint>(split_arena, maxlrg, 0, 0));
+  GrowableArray<uint>*  splits = PRODUCT_ONLY(NULL) NOT_PRODUCT(new (split_arena) GrowableArray<uint>(split_arena, maxlrg, 0, 0));
 
 #define NEW_SPLIT_ARRAY(type, size)\
   (type*) split_arena->allocate_bytes((size) * sizeof(type))
