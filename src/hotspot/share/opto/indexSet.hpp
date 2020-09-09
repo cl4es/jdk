@@ -51,7 +51,7 @@ class IndexSet : public ResourceObj {
   // a separately allocated array is used.
 
   // The length of the preallocated top level block array
-  enum { preallocated_block_list_size = 8 };
+  enum { preallocated_block_list_size = 4 };
 
   // Elements of a IndexSet get decomposed into three fields.  The highest order
   // bits are the block index, which tell which high level block holds the element.
@@ -61,7 +61,7 @@ class IndexSet : public ResourceObj {
 
   // The lengths of the index bitfields
   enum { bit_index_length = 6,
-         word_index_length = 2,
+         word_index_length = 3,
          block_index_length = 8 // not used
   };
 
@@ -104,7 +104,7 @@ class IndexSet : public ResourceObj {
 
     // A BitBlock is composed of some number of 64 bit words.  When a BitBlock
     // is not in use by any IndexSet, it is stored on a free list.  The next field
-    // is used by IndexSet to mainting this free list.
+    // is used by IndexSet to maintain this free list.
 
     union {
       uint64_t _words[words_per_block];
