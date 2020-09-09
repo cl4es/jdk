@@ -51,7 +51,7 @@ class IndexSet : public ResourceObj {
   // a separately allocated array is used.
 
   // The length of the preallocated top level block array
-  enum { preallocated_block_list_size = 8 };
+  enum { preallocated_block_list_size = 16 };
 
   // Elements of a IndexSet get decomposed into three fields.  The highest order
   // bits are the block index, which tell which high level block holds the element.
