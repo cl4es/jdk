@@ -31,6 +31,7 @@
  */
 package build.tools.classlist;
 
+import java.io.ByteArrayInputStream;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
@@ -45,6 +46,7 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
+import java.util.jar.Manifest;
 import java.text.DateFormat;
 
 import static java.util.stream.Collectors.*;
@@ -124,6 +126,8 @@ public class HelloClasslist {
         invoke(handle("staticMethod_V", MethodType.methodType(void.class)));
 
         LOGGER.log(Level.FINE, "New Date: " + newDate + " - old: " + oldDate);
+
+        var manifest = new Manifest(new ByteArrayInputStream(new byte[0]));
     }
 
     public static void staticMethod_V() {}
