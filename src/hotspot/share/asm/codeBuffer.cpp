@@ -1004,7 +1004,7 @@ void CodeBuffer::verify_section_allocation() {
            "start is aligned");
     for (int m = n + 1; m < (int) SECT_LIMIT; m++) {
       CodeSection* other = code_section(m);
-      if (!other->is_allocated() || other == sect)  continue;
+      if (!other->is_allocated() || other->is_empty() || other == sect)  continue;
       // check sections are disjoint
 
       // limit is an exclusive address and can be the start of another
