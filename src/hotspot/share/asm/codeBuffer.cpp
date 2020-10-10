@@ -991,8 +991,8 @@ void CodeBuffer::verify_section_allocation() {
   if (tstart == badAddress)  return;  // smashed by set_blob(NULL)
   address tend   = tstart + _total_size;
   if (_blob != NULL) {
-    guarantee(tstart >= _blob->content_begin(), "sanity");
-    guarantee(tend   <= _blob->content_end(),   "sanity");
+    guarantee(tstart >= _blob->content_begin()
+           && tend   <= _blob->content_end(),   "sanity");
   }
   // Verify disjointness.
   for (int n = (int) SECT_FIRST; n < (int) SECT_LIMIT; n++) {
@@ -1004,16 +1004,17 @@ void CodeBuffer::verify_section_allocation() {
            "start is aligned");
     for (int m = n + 1; m < (int) SECT_LIMIT; m++) {
       CodeSection* other = code_section(m);
-      if (!other->is_allocated())  continue;
-      guarantee(!other->contains(sect->start()    ), "sanity");
-      guarantee(!sect->contains(other->start()    ), "sanity");
+      if (!other->is_allocated() || other == sect)  continue;
+      // check sections are disjoint
+
       // limit is an exclusive address and can be the start of another
       // section.
-      guarantee(!other->contains(sect->limit() - 1), "sanity");
-      guarantee(!sect->contains(other->limit() - 1), "sanity");
+      guarantee(!other->contains(sect->start())
+             && !sect->contains(other->start())
+             && !other->contains(sect->limit() - 1)
+             && !sect->contains(other->limit() - 1), "sanity");
     }
-    guarantee(sect->end() <= tend, "sanity");
-    guarantee(sect->end() <= sect->limit(), "sanity");
+    guarantee(sect->end() <= tend && sect->end() <= sect->limit(), "sanity");
   }
 }
 
