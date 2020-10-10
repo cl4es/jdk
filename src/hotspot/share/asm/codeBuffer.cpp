@@ -991,7 +991,6 @@ void CodeBuffer::verify_section_allocation() {
   if (tstart == badAddress)  return;  // smashed by set_blob(NULL)
   address tend   = tstart + _total_size;
   if (_blob != NULL) {
-
     guarantee(tstart >= _blob->content_begin(), "sanity");
     guarantee(tend   <= _blob->content_end(),   "sanity");
   }
@@ -999,16 +998,19 @@ void CodeBuffer::verify_section_allocation() {
   for (int n = (int) SECT_FIRST; n < (int) SECT_LIMIT; n++) {
     CodeSection* sect = code_section(n);
     if (!sect->is_allocated() || sect->is_empty())  continue;
-    guarantee((intptr_t)sect->start() % sect->alignment() == 0
-           || sect->is_empty() || _blob == NULL,
+    assert(is_power_of_2(sect->alignment()), "alignment must be power of 2");
+    guarantee(sect->is_empty() || _blob == NULL
+           || ((intptr_t)sect->start() & (sect->alignment() - 1)) == 0,
            "start is aligned");
-    for (int m = (int) SECT_FIRST; m < (int) SECT_LIMIT; m++) {
+    for (int m = n + 1; m < (int) SECT_LIMIT; m++) {
       CodeSection* other = code_section(m);
-      if (!other->is_allocated() || other == sect)  continue;
+      if (!other->is_allocated())  continue;
       guarantee(!other->contains(sect->start()    ), "sanity");
+      guarantee(!sect->contains(other->start()    ), "sanity");
       // limit is an exclusive address and can be the start of another
       // section.
       guarantee(!other->contains(sect->limit() - 1), "sanity");
+      guarantee(!sect->contains(other->limit() - 1), "sanity");
     }
     guarantee(sect->end() <= tend, "sanity");
     guarantee(sect->end() <= sect->limit(), "sanity");
