@@ -2250,23 +2250,6 @@ bool nmethod::is_dependent_on_method(Method* dependee) {
   return false;
 }
 
-
-bool nmethod::is_patchable_at(address instr_addr) {
-  assert(insts_contains(instr_addr), "wrong nmethod used");
-  if (is_zombie()) {
-    // a zombie may never be patched
-    return false;
-  }
-  return true;
-}
-
-
-void nmethod_init() {
-  // make sure you didn't forget to adjust the filler fields
-  assert(sizeof(nmethod) % oopSize == 0, "nmethod size must be multiple of a word");
-}
-
-
 //-------------------------------------------------------------------------------------------
 
 

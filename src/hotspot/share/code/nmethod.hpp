@@ -726,9 +726,6 @@ public:
   // corresponds to the given method as well.
   virtual bool is_dependent_on_method(Method* dependee);
 
-  // is it ok to patch at address?
-  bool is_patchable_at(address instr_address);
-
   // UseBiasedLocking support
   ByteSize native_receiver_sp_offset() {
     return _native_receiver_sp_offset;
@@ -738,7 +735,6 @@ public:
   }
 
   // support for code generation
-  static int verified_entry_point_offset()        { return offset_of(nmethod, _verified_entry_point); }
   static int osr_entry_point_offset()             { return offset_of(nmethod, _osr_entry_point); }
   static int state_offset()                       { return offset_of(nmethod, _state); }
 
