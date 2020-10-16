@@ -732,7 +732,7 @@ void CodeCache::verify_icholder_relocations() {
   FOR_ALL_HEAPS(heap) {
     FOR_ALL_BLOBS(cb, *heap) {
       CompiledMethod *cm = cb->as_compiled_method_or_null();
-      if (nm != NULL) {
+      if (cm != NULL) {
         count += cm->verify_icholder_relocations();
       }
     }
