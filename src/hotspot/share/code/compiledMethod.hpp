@@ -368,7 +368,7 @@ public:
   void run_nmethod_entry_barrier();
 
   // Verify and count cached icholder relocations.
-  int  verify_icholder_relocations() PRODUCT_RETURN;
+  NOT_PRODUCT(int verify_icholder_relocations())
   void verify_oop_relocations();
 
   bool has_evol_metadata();
