@@ -342,8 +342,6 @@ class nmethod : public CompiledMethod {
   int content_offset() const                  { return content_begin() - header_begin(); }
   int data_offset() const                     { return _data_offset; }
 
-  address header_end() const                  { return (address)    header_begin() + header_size(); }
-
  public:
   // create nmethod with entry_bci
   static nmethod* new_nmethod(const methodHandle& method,
@@ -442,9 +440,6 @@ class nmethod : public CompiledMethod {
 
   // Containment
   bool oops_contains         (oop*    addr) const { return oops_begin         () <= addr && addr < oops_end         (); }
-  bool metadata_contains     (Metadata** addr) const   { return metadata_begin     () <= addr && addr < metadata_end     (); }
-  bool scopes_data_contains  (address addr) const { return scopes_data_begin  () <= addr && addr < scopes_data_end  (); }
-  bool scopes_pcs_contains   (PcDesc* addr) const { return scopes_pcs_begin   () <= addr && addr < scopes_pcs_end   (); }
 
   // entry points
   address entry_point() const                     { return _entry_point;             } // normal entry point
@@ -526,12 +521,10 @@ class nmethod : public CompiledMethod {
 
   // Relocation support
 private:
-  void fix_oop_relocations(address begin, address end, bool initialize_immediates);
   inline void initialize_immediate_oop(oop* dest, jobject handle);
 
 public:
-  void fix_oop_relocations(address begin, address end) { fix_oop_relocations(begin, end, false); }
-  void fix_oop_relocations()                           { fix_oop_relocations(NULL, NULL, false); }
+  void fix_oop_relocations(bool initialize_immediates = false);
 
   // Sweeper support
   long  stack_traversal_mark()                    { return _stack_traversal_mark; }

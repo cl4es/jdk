@@ -1026,7 +1026,7 @@ void nmethod::copy_values(GrowableArray<jobject>* array) {
   // The code and relocations have already been initialized by the
   // CodeBlob constructor, so it is valid even at this early point to
   // iterate over relocations and patch the code.
-  fix_oop_relocations(NULL, NULL, /*initialize_immediates=*/ true);
+  fix_oop_relocations(/*initialize_immediates=*/ true);
 }
 
 void nmethod::copy_values(GrowableArray<Metadata*>* array) {
@@ -1038,9 +1038,9 @@ void nmethod::copy_values(GrowableArray<Metadata*>* array) {
   }
 }
 
-void nmethod::fix_oop_relocations(address begin, address end, bool initialize_immediates) {
+void nmethod::fix_oop_relocations(bool initialize_immediates) {
   // re-patch all oop-bearing instructions, just in case some oops moved
-  RelocIterator iter(this, begin, end);
+  RelocIterator iter(this);
   while (iter.next()) {
     if (iter.type() == relocInfo::oop_type) {
       oop_Relocation* reloc = iter.oop_reloc();
