@@ -204,7 +204,6 @@ class nmethod : public CompiledMethod {
   int _stub_offset;
   int _oops_offset;                       // offset to where embedded oop table begins (inside data)
   int _metadata_offset;                   // embedded meta data table
-  int _scopes_data_offset;
   int _scopes_pcs_offset;
   int _dependencies_offset;
   int _handler_table_offset;
