@@ -1098,7 +1098,7 @@ void nmethod::verify_clean_inline_caches() {
     }
   }
 }
-#endif
+#endif // ASSERT
 
 // This is a private interface with the sweeper.
 void nmethod::mark_as_seen_on_stack() {
