@@ -280,7 +280,6 @@ public:
 
   virtual address consts_begin() const = 0;
   virtual address consts_end() const = 0;
-  bool consts_contains(address addr) const { return consts_begin() <= addr && addr < consts_end(); }
   int consts_size() const { return consts_end() - consts_begin(); }
 
   virtual address stub_begin() const = 0;
@@ -290,14 +289,12 @@ public:
 
   virtual address handler_table_begin() const = 0;
   virtual address handler_table_end() const = 0;
-  bool handler_table_contains(address addr) const { return handler_table_begin() <= addr && addr < handler_table_end(); }
   int handler_table_size() const { return handler_table_end() - handler_table_begin(); }
 
   virtual address exception_begin() const = 0;
 
   virtual address nul_chk_table_begin() const = 0;
   virtual address nul_chk_table_end() const = 0;
-  bool nul_chk_table_contains(address addr) const { return nul_chk_table_begin() <= addr && addr < nul_chk_table_end(); }
   int nul_chk_table_size() const { return nul_chk_table_end() - nul_chk_table_begin(); }
 
   virtual oop* oop_addr_at(int index) const = 0;
