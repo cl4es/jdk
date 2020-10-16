@@ -71,6 +71,7 @@
 #include "opto/node.hpp"
 #endif
 
+#ifndef PRODUCT
 // Helper class for printing in CodeCache
 class CodeBlob_sizes {
  private:
@@ -136,6 +137,7 @@ class CodeBlob_sizes {
     }
   }
 };
+#endif
 
 // Iterate over all CodeHeaps
 #define FOR_ALL_HEAPS(heap) for (GrowableArrayIterator<CodeHeap*> heap = _heaps->begin(); heap != _heaps->end(); ++heap)
@@ -713,8 +715,8 @@ void CodeCache::blobs_do(CodeBlobClosure* f) {
   }
 }
 
-void CodeCache::verify_clean_inline_caches() {
 #ifdef ASSERT
+void CodeCache::verify_clean_inline_caches() {
   NMethodIterator iter(NMethodIterator::only_alive_and_not_unloading);
   while(iter.next()) {
     nmethod* nm = iter.method();
@@ -722,25 +724,23 @@ void CodeCache::verify_clean_inline_caches() {
     nm->verify_clean_inline_caches();
     nm->verify();
   }
-#endif
 }
 
 void CodeCache::verify_icholder_relocations() {
-#ifdef ASSERT
   // make sure that we aren't leaking icholders
   int count = 0;
   FOR_ALL_HEAPS(heap) {
     FOR_ALL_BLOBS(cb, *heap) {
-      CompiledMethod *nm = cb->as_compiled_method_or_null();
+      CompiledMethod *cm = cb->as_compiled_method_or_null();
       if (nm != NULL) {
-        count += nm->verify_icholder_relocations();
+        count += cm->verify_icholder_relocations();
       }
     }
   }
   assert(count + InlineCacheBuffer::pending_icholder_count() + CompiledICHolder::live_not_claimed_count() ==
          CompiledICHolder::live_count(), "must agree");
-#endif
 }
+#endif // ASSERT
 
 // Defer freeing of concurrently cleaned ExceptionCache entries until
 // after a global handshake operation.

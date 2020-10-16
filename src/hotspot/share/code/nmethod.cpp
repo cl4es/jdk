@@ -1057,7 +1057,7 @@ void nmethod::fix_oop_relocations(address begin, address end, bool initialize_im
   }
 }
 
-
+#ifdef ASSERT
 void nmethod::verify_clean_inline_caches() {
   assert(CompiledICLocker::is_safe(this), "mt unsafe call");
 
@@ -1098,6 +1098,7 @@ void nmethod::verify_clean_inline_caches() {
     }
   }
 }
+#endif
 
 // This is a private interface with the sweeper.
 void nmethod::mark_as_seen_on_stack() {

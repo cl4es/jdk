@@ -336,6 +336,7 @@ address CompiledMethod::oops_reloc_begin() const {
   return low_boundary;
 }
 
+#ifndef PRODUCT
 int CompiledMethod::verify_icholder_relocations() {
   ResourceMark rm;
   int count = 0;
@@ -357,6 +358,7 @@ int CompiledMethod::verify_icholder_relocations() {
 
   return count;
 }
+#endif // !PRODUCT
 
 // Method that knows how to preserve outgoing arguments at call. This method must be
 // called with a frame corresponding to a Java invoke

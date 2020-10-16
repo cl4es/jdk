@@ -546,7 +546,7 @@ public:
   void     set_osr_link(nmethod *n)               { _osr_link = n; }
 
   // Verify calls to dead methods have been cleaned.
-  void verify_clean_inline_caches();
+  void verify_clean_inline_caches() NOT_DEBUG_RETURN;
 
   // unlink and deallocate this nmethod
   // Only NMethodSweeper class is expected to use this. NMethodSweeper is not

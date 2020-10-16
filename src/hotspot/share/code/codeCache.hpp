@@ -257,8 +257,8 @@ class CodeCache : AllStatic {
     return 0;
   }
 
-  static void verify_clean_inline_caches();
-  static void verify_icholder_relocations();
+  static void verify_clean_inline_caches() NOT_DEBUG_RETURN;
+  static void verify_icholder_relocations() NOT_DEBUG_RETURN;
 
   // Deoptimization
  private:
