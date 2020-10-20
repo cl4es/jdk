@@ -231,8 +231,9 @@ void AbstractInterpreter::set_entry_for_kind(AbstractInterpreter::MethodKind kin
          kind <= method_handle_invoke_LAST, "late initialization only for MH entry points");
   assert(_entry_table[kind] == _entry_table[abstract], "previous value must be AME entry");
   _entry_table[kind] = entry;
-
-  update_cds_entry_table(kind);
+  if (DumpSharedSpaces || UseSharedSpaces) {
+    _cds_entry_table[kind] = entry;
+  }
 }
 
 // Return true if the interpreter can prove that the given bytecode has
