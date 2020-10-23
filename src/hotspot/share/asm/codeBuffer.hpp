@@ -408,7 +408,7 @@ class CodeBuffer: public StackObj {
   OopRecorder  _default_oop_recorder;  // override with initialize_oop_recorder
   Arena*       _overflow_arena;
 
-  address      _last_insn;      // used to merge consecutive memory barriers, loads or stores.
+  AARCH64_ONLY(address _last_insn;)      // used to merge consecutive memory barriers, loads or stores.
 
 #if INCLUDE_AOT
   bool         _immutable_PIC;
@@ -429,7 +429,7 @@ class CodeBuffer: public StackObj {
     _blob            = NULL;
     _oop_recorder    = NULL;
     _overflow_arena  = NULL;
-    _last_insn       = NULL;
+    AARCH64_ONLY(_last_insn = NULL;)
 #if INCLUDE_AOT
     _immutable_PIC   = false;
 #endif
@@ -636,9 +636,11 @@ class CodeBuffer: public StackObj {
 
   OopRecorder* oop_recorder() const { return _oop_recorder; }
 
+#ifdef AARCH64
   address last_insn() const { return _last_insn; }
   void set_last_insn(address a) { _last_insn = a; }
   void clear_last_insn() { set_last_insn(NULL); }
+#endif // AARCH64
 
 #ifndef PRODUCT
   CodeStrings& strings() { return _code_strings; }
