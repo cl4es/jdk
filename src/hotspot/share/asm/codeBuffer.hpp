@@ -693,11 +693,6 @@ class CodeBuffer: public StackObj {
 
 };
 
-
-inline void CodeSection::freeze() {
-  _outer->freeze_section(this);
-}
-
 inline bool CodeSection::maybe_expand_to_ensure_remaining(csize_t amount) {
   if (remaining() < amount) { _outer->expand(this, amount); return true; }
   return false;
