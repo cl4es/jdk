@@ -403,6 +403,10 @@ class CodeBuffer: public StackObj {
   address      _total_start;    // first address of combined memory buffer
   csize_t      _total_size;     // size in bytes of combined memory buffer
 
+#if INCLUDE_AOT
+  bool         _immutable_PIC;
+#endif
+
   OopRecorder* _oop_recorder;
 
   OopRecorder  _default_oop_recorder;  // override with initialize_oop_recorder
@@ -410,9 +414,6 @@ class CodeBuffer: public StackObj {
 
   AARCH64_ONLY(address _last_insn;)      // used to merge consecutive memory barriers, loads or stores.
 
-#if INCLUDE_AOT
-  bool         _immutable_PIC;
-#endif
 
 #ifndef PRODUCT
   CodeStrings  _code_strings;
@@ -650,21 +651,7 @@ class CodeBuffer: public StackObj {
       _code_strings.free(); // sets _strings Null as a side-effect.
     }
   }
-
-  // Print the comment associated with offset on stream, if there is one.
-  virtual void print_block_comment(outputStream* stream, address block_begin) {
-    intptr_t offset = (intptr_t)(block_begin - _total_start);  // I assume total_start is not correct for all code sections.
-    _code_strings.print_block_comment(stream, offset);
-  }
 #endif
-
-  // Code generation
-  void relocate(address at, RelocationHolder const& rspec, int format = 0) {
-    _insts.relocate(at, rspec, format);
-  }
-  void relocate(address at,    relocInfo::relocType rtype, int format = 0) {
-    _insts.relocate(at, rtype, format);
-  }
 
   // Management of overflow storage for binding of Labels.
   GrowableArray<int>* create_patch_overflow();
@@ -680,9 +667,6 @@ class CodeBuffer: public StackObj {
       oop_recorder()->copy_values_to(nm);
     }
   }
-
-  // Transform an address from the code in this code buffer to a specified code buffer
-  address transform_address(const CodeBuffer &cb, address addr) const;
 
   void block_comment(intptr_t offset, const char * comment) PRODUCT_RETURN;
   const char* code_string(const char* str) PRODUCT_RETURN_(return NULL;);
