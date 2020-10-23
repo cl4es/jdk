@@ -653,6 +653,14 @@ class CodeBuffer: public StackObj {
   }
 #endif
 
+  // Code generation
+  void relocate(address at, RelocationHolder const& rspec, int format = 0) {
+    _insts.relocate(at, rspec, format);
+  }
+  void relocate(address at,    relocInfo::relocType rtype, int format = 0) {
+    _insts.relocate(at, rtype, format);
+  }
+
   // Management of overflow storage for binding of Labels.
   GrowableArray<int>* create_patch_overflow();
 
