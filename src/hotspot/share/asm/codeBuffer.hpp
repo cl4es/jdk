@@ -92,7 +92,6 @@ class CodeSection {
   relocInfo*  _locs_limit;      // first byte after relocation information buf
   address     _locs_point;      // last relocated position (grows upward)
   bool        _locs_own;        // did I allocate the locs myself?
-  bool        _frozen;          // no more expansion of this section
   bool        _scratch_emit;    // Buffer is used for scratch emit, don't relocate.
   char        _index;           // my section number (SECT_INST, etc.)
   CodeBuffer* _outer;           // enclosing CodeBuffer
@@ -109,7 +108,6 @@ class CodeSection {
     _locs_limit    = NULL;
     _locs_point    = NULL;
     _locs_own      = false;
-    _frozen        = false;
     _scratch_emit  = false;
     debug_only(_index = (char)-1);
     debug_only(_outer = (CodeBuffer*)badAddress);
@@ -166,7 +164,6 @@ class CodeSection {
   int         index() const         { return _index; }
   bool        is_allocated() const  { return _start != NULL; }
   bool        is_empty() const      { return _start == _end; }
-  bool        is_frozen() const     { return _frozen; }
   bool        has_locs() const      { return _locs_end != NULL; }
 
   // Mark scratch buffer.
@@ -184,8 +181,6 @@ class CodeSection {
   void    set_end(address pc)       { assert(allocates2(pc), "not in CodeBuffer memory: " INTPTR_FORMAT " <= " INTPTR_FORMAT " <= " INTPTR_FORMAT, p2i(_start), p2i(pc), p2i(_limit)); _end = pc; }
   void    set_mark(address pc)      { assert(contains2(pc), "not in codeBuffer");
                                       _mark = pc; }
-  void    set_mark_off(int offset)  { assert(contains2(offset+_start),"not in codeBuffer");
-                                      _mark = offset + _start; }
   void    set_mark()                { _mark = _end; }
   void    clear_mark()              { _mark = NULL; }
 
@@ -258,10 +253,6 @@ class CodeSection {
   static csize_t end_slop()         { return MAX2((int)sizeof(jdouble), (int)CodeEntryAlignment); }
 
   csize_t align_at_start(csize_t off) const { return (csize_t) align_up(off, alignment()); }
-
-  // Mark a section frozen.  Assign its remaining space to
-  // the following section.  It will never expand after this point.
-  inline void freeze();         //  { _outer->freeze_section(this); }
 
   // Ensure there's enough space left in the current section.
   // Return true if there was an expansion.
@@ -463,8 +454,6 @@ class CodeBuffer: public StackObj {
   }
 
   void initialize_section_size(CodeSection* cs, csize_t size);
-
-  void freeze_section(CodeSection* cs);
 
   // helper for CodeBuffer::expand()
   void take_over_code_from(CodeBuffer* cs);
