@@ -49,6 +49,7 @@ class ThreadHeapSampler {
   void pick_next_sample(size_t overflowed_bytes = 0);
 
   static double fast_log2(const double& d);
+  static double fast_log2_uncached(const double& d);
   static bool init_log_table();
   uint64_t next_random(uint64_t rnd);
 
@@ -60,9 +61,9 @@ class ThreadHeapSampler {
     }
 
     if (log_is_enabled(Trace,heapsampling)) {
-      log_trace(heapsampling)("log2(100.0): %F fast_log2(100.0): %F", fast_log2(100.0), log2(100.0));
-      log_trace(heapsampling)("log2(10000.0): %F fast_log2(10000.0): %F", fast_log2(10000.0), log2(10000.0));
-      log_trace(heapsampling)("log2(1000000.0): %F fast_log2(1000000.0): %F", fast_log2(1000000.0), log2(1000000.0));
+      log_trace(heapsampling)("log2(100.0): %F fast_log2(100.0): %F fast_log2_uncached: %F", fast_log2(100.0), fast_log2(100.0), fast_log2_uncached(100.0);
+      log_trace(heapsampling)("log2(10000.0): %F fast_log2(10000.0): %F", log2(10000.0), fast_log2(10000.0));
+      log_trace(heapsampling)("log2(1000000.0): %F fast_log2(1000000.0): %F", log2(1000000.0), fast_log2(1000000.0));
     }
 
     if (log_is_enabled(Debug,heapsampling)) {
@@ -84,6 +85,14 @@ class ThreadHeapSampler {
           _rnd = next_random(_rnd);
           double q = static_cast<uint32_t>(_rnd >> (48 - 26)) + 1.0;
           value += fast_log2(q);
+        }
+      }
+      {
+        TraceTime timer("fast_log2_uncached", TRACETIME_LOG(Debug, heapsampling));
+        for (int i = 0; i < iterations; i++) {
+          _rnd = next_random(_rnd);
+          double q = static_cast<uint32_t>(_rnd >> (48 - 26)) + 1.0;
+          value += fast_log2_uncached(q);
         }
       }
       log_trace(heapsampling)("value: %F", value);  // Just to ensure code above isn't DCE'd

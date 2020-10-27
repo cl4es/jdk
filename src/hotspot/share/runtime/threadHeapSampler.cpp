@@ -77,6 +77,22 @@ double ThreadHeapSampler::fast_log2(const double& d) {
   return exponent + _log_table[y];
 }
 
+double ThreadHeapSampler::fast_log2_uncached(const double& d) {
+  assert(d>0, "bad value passed to assert");
+  uint64_t x = 0;
+  assert(sizeof(d) == sizeof(x),
+         "double and uint64_t do not have the same size");
+  x = *reinterpret_cast<const uint64_t*>(&d);
+  const uint32_t x_high = x >> 32;
+  assert(FastLogNumBits <= 20, "FastLogNumBits should be less than 20.");
+  const uint32_t y = x_high >> (20 - FastLogNumBits) & FastLogMask;
+  const int32_t exponent = ((x_high >> 20) & 0x7FF) - 1023;
+
+  assert(_log_table_initialized, "log table should be initialized");
+  return exponent + (log(1.0 + static_cast<double>(y+0.5) / (1 << FastLogNumBits))
+                    / log(2.0));
+}
+
 // Generates a geometric variable with the specified mean (512K by default).
 // This is done by generating a random number between 0 and 1 and applying
 // the inverse cumulative distribution function for an exponential.
