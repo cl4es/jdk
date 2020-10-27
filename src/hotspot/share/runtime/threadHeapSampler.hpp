@@ -61,7 +61,7 @@ class ThreadHeapSampler {
     }
 
     if (log_is_enabled(Trace,heapsampling)) {
-      log_trace(heapsampling)("log2(100.0): %F fast_log2(100.0): %F fast_log2_uncached: %F", fast_log2(100.0), fast_log2(100.0), fast_log2_uncached(100.0);
+      log_trace(heapsampling)("log2(100.0): %F fast_log2(100.0): %F fast_log2_uncached: %F", fast_log2(100.0), fast_log2(100.0), fast_log2_uncached(100.0));
       log_trace(heapsampling)("log2(10000.0): %F fast_log2(10000.0): %F", log2(10000.0), fast_log2(10000.0));
       log_trace(heapsampling)("log2(1000000.0): %F fast_log2(1000000.0): %F", log2(1000000.0), fast_log2(1000000.0));
     }
