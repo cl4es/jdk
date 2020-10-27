@@ -59,6 +59,12 @@ class ThreadHeapSampler {
       _rnd = 1;
     }
 
+    if (log_is_enabled(Trace,heapsampling)) {
+      log_trace(heapsampling)("log2(100.0): %F fast_log2(100.0): %F", fast_log2(100.0), log2(100.0));
+      log_trace(heapsampling)("log2(10000.0): %F fast_log2(10000.0): %F", fast_log2(10000.0), log2(10000.0));
+      log_trace(heapsampling)("log2(1000000.0): %F fast_log2(1000000.0): %F", fast_log2(1000000.0), log2(1000000.0));
+    }
+
     if (log_is_enabled(Debug,heapsampling)) {
       _rnd = next_random(_rnd);
       const int iterations = 2500000;
@@ -66,15 +72,18 @@ class ThreadHeapSampler {
       {
         TraceTime timer("log2", TRACETIME_LOG(Debug, heapsampling));
         for (int i = 0; i < iterations; i++) {
+
           _rnd = next_random(_rnd);
-          value += log2(_rnd);
+          double q = static_cast<uint32_t>(_rnd >> (48 - 26)) + 1.0;
+          value += log2(q);
         }
       }
       {
         TraceTime timer("fast_log2", TRACETIME_LOG(Debug, heapsampling));
         for (int i = 0; i < iterations; i++) {
           _rnd = next_random(_rnd);
-          value += fast_log2(_rnd);
+          double q = static_cast<uint32_t>(_rnd >> (48 - 26)) + 1.0;
+          value += fast_log2(q);
         }
       }
       log_trace(heapsampling)("value: %F", value);  // Just to ensure code above isn't DCE'd
