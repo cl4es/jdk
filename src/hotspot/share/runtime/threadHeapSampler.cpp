@@ -24,6 +24,7 @@
  */
 
 #include "precompiled.hpp"
+
 #include "runtime/atomic.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/sharedRuntime.hpp"

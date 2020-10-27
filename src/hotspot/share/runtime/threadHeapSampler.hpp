@@ -26,7 +26,10 @@
 #ifndef SHARE_RUNTIME_THREADHEAPSAMPLER_HPP
 #define SHARE_RUNTIME_THREADHEAPSAMPLER_HPP
 
+#include "logging/log.hpp"
+#include "logging/logTag.hpp"
 #include "memory/allocation.hpp"
+#include "runtime/timerTrace.hpp"
 
 class ThreadHeapSampler {
  private:
@@ -54,6 +57,27 @@ class ThreadHeapSampler {
     _rnd = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(this));
     if (_rnd == 0) {
       _rnd = 1;
+    }
+
+    if (log_is_enabled(Debug,heapsampling)) {
+      _rnd = next_random(_rnd);
+      const int iterations = 2500000;
+      double value = 0;
+      {
+        TraceTime timer("log2", TRACETIME_LOG(Debug, heapsampling));
+        for (int i = 0; i < iterations; i++) {
+          _rnd = next_random(_rnd);
+          value += log2(_rnd);
+        }
+      }
+      {
+        TraceTime timer("fast_log2", TRACETIME_LOG(Debug, heapsampling));
+        for (int i = 0; i < iterations; i++) {
+          _rnd = next_random(_rnd);
+          value += fast_log2(_rnd);
+        }
+      }
+      log_trace("value: %F", value);  // Just to ensure code above isn't DCE'd
     }
 
     // Call this after _rnd is initialized to initialize _bytes_until_sample.
