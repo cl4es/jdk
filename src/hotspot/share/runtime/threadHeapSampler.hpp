@@ -77,7 +77,7 @@ class ThreadHeapSampler {
           value += fast_log2(_rnd);
         }
       }
-      log_trace("value: %F", value);  // Just to ensure code above isn't DCE'd
+      log_trace(heapsampling)("value: %F", value);  // Just to ensure code above isn't DCE'd
     }
 
     // Call this after _rnd is initialized to initialize _bytes_until_sample.
