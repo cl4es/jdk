@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -94,37 +94,6 @@ TEST_VM_F(LogTest, disabled_logtarget) {
   log_info(gc)("Dummy line");
 
   EXPECT_FALSE(file_contains_substring(TestLogFileName, LOG_TEST_STRING_LITERAL));
-}
-
-TEST_VM_F(LogTest, enabled_loghandle) {
-  set_log_config(TestLogFileName, "gc=debug");
-
-  Log(gc) log;
-  LogHandle log_handle(log);
-
-  EXPECT_TRUE(log_handle.is_debug());
-
-  // Try to log through a LogHandle.
-  log_handle.debug("%d workers", 3);
-
-  EXPECT_TRUE(file_contains_substring(TestLogFileName, "3 workers"));
-}
-
-TEST_VM_F(LogTest, disabled_loghandle) {
-  set_log_config(TestLogFileName, "gc=info");
-
-  Log(gc) log;
-  LogHandle log_handle(log);
-
-  EXPECT_FALSE(log_handle.is_debug());
-
-  // Try to log through a LogHandle.
-  log_handle.debug("%d workers", 3);
-
-  // Log a dummy line so that fgets doesn't return NULL because the file is empty.
-  log_info(gc)("Dummy line");
-
-  EXPECT_FALSE(file_contains_substring(TestLogFileName, "3 workers"));
 }
 
 TEST_VM_F(LogTest, enabled_logtargethandle) {
