@@ -1120,15 +1120,15 @@ int DataLayout::cell_count() {
   case DataLayout::branch_data_tag:
     return BranchData::static_cell_count();
   case DataLayout::multi_branch_data_tag:
-    return ((new MultiBranchData(this))->cell_count());
+    return MultiBranchData::cell_count_for(this);
   case DataLayout::arg_info_data_tag:
-    return ((new ArgInfoData(this))->cell_count());
+    return ArgInfoData::cell_count_for(this);
   case DataLayout::call_type_data_tag:
     return ((new CallTypeData(this))->cell_count());
   case DataLayout::virtual_call_type_data_tag:
     return ((new VirtualCallTypeData(this))->cell_count());
   case DataLayout::parameters_type_data_tag:
-    return ((new ParametersTypeData(this))->cell_count());
+    return ParametersTypeData::cell_count_for(this);
   case DataLayout::speculative_trap_data_tag:
     return SpeculativeTrapData::static_cell_count();
   }

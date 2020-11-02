@@ -1576,7 +1576,16 @@ public:
   virtual bool is_ArrayData() const { return true; }
 
   static int static_cell_count() {
+    ShouldNotReachHere();
     return -1;
+  }
+
+  static int cell_count_for(const DataLayout* data) {
+    return array_len(data) + 1;
+  }
+
+  static int array_len(const DataLayout* data) {
+    return (int)data->cell_at(array_len_off_set);
   }
 
   int array_len() const {
@@ -1584,7 +1593,7 @@ public:
   }
 
   virtual int cell_count() const {
-    return array_len() + 1;
+    return array_len(data()) + 1;
   }
 
   // Code generation support
@@ -2238,8 +2247,12 @@ public:
   }
 
   int parameters_size_in_bytes() const {
-    ParametersTypeData* param = parameters_type_data();
-    return param == NULL ? 0 : param->size_in_bytes();
+    if (_parameters_type_data_di != no_parameters) {
+      DataLayout* data = data_layout_at(_parameters_type_data_di);
+      assert(data->data_in()->is_ParametersTypeData(), "wrong type");
+      return DataLayout::compute_size_in_bytes(ParametersTypeData::cell_count_for(data));
+    }
+    return 0;
   }
 
   // Accessors
