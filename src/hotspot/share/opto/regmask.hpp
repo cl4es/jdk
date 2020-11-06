@@ -59,7 +59,7 @@ class RegMask {
   enum {
     _WordBits    = BitsPerLong,
     _LogWordBits = LogBitsPerLong,
-    _RM_SIZE     = align_up_(RM_SIZE, 2) >> 1
+    _RM_SIZE     = align_up(RM_SIZE, 2) >> 1
   };
 
   union {
