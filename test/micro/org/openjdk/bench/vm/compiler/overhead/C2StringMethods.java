@@ -51,7 +51,7 @@ public class C2StringMethods {
     @Fork(value = 20, jvmArgsAppend="-XX:CompileCommand=option,java/lang/String.hashCode,uintx,RepeatCompilation,10000")
     public int compileHashCode() {
         int value;
-        for (int i = 0; i < 100_000) {
+        for (int i = 0; i < 100_000; i++) {
             value += "constant".hashCode();
         }
         return value;
