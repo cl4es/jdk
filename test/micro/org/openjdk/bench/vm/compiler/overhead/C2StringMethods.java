@@ -48,24 +48,24 @@ import java.util.Arrays;
 public class C2StringMethods {
 
     @Benchmark
-    @Fork(value = 10, jvmArgsAppend={
+    @Fork(value = 5, jvmArgsAppend={
         "-Xbatch",
         "-XX:-TieredCompilation",
-        "-XX:CompileCommand=option,java/lang/String.hashCode,uintx,RepeatCompilation,1000"
+        "-XX:CompileCommand=option,java/lang/String.hashCode,intx,RepeatCompilation,1000"
     })
     public int hashCode_repeat1000() {
         return hashCode();
     }
 
     @Benchmark
-    @Fork(value = 10)
+    @Fork(value = 5)
     public int hashCode_baseline() {
         return hashCode();
     }
 
     public int hashCode() {
         int value = 0;
-        for (int i = 0; i < 100_000; i++) {
+        for (int i = 0; i < 1_000_000; i++) {
             value += "constant".hashCode();
         }
         return value;
