@@ -58,7 +58,7 @@ public class C2StringMethods {
     }
 
     @Benchmark
-    @Fork(value = 10, jvmArgsAppend="")
+    @Fork(value = 10)
     public int hashCode_baseline() {
         return hashCode();
     }
