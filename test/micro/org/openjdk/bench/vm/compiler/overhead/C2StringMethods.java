@@ -43,7 +43,7 @@ import java.util.Arrays;
  */
 
 @State(Scope.Benchmark)
-@BenchmarkMode(Mode.SingleShot)
+@BenchmarkMode(Mode.SingleShotTime)
 @OutputTimeUnit(TimeUnit.MILLISECONDS)
 public class C2StringMethods {
 
