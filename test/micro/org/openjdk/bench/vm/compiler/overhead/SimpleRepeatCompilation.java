@@ -21,7 +21,7 @@
  * questions.
  */
 
-package org.openjdk.bench.vm.compiler;
+package org.openjdk.bench.vm.compiler.overhead;
 
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
@@ -45,29 +45,58 @@ import java.util.Arrays;
 @State(Scope.Benchmark)
 @BenchmarkMode(Mode.SingleShotTime)
 @OutputTimeUnit(TimeUnit.MILLISECONDS)
-public class C2StringMethods {
+public class SimpleRepeatCompilation {
+
+    public static final String METHOD = "org/openjdk/bench/vm/compiler/overhead/SimpleRepeatCompilation.mixHashCode"
+
+    @Benchmark
+    @Fork(value = 5, jvmArgsAppend={
+        "-Xbatch",
+        "-XX:CompileCommand=option," + METHOD + ",intx,RepeatCompilation,1000" })
+    public int mixHashCode_repeat() {
+        return loop_hashCode();
+    }
 
     @Benchmark
     @Fork(value = 5, jvmArgsAppend={
         "-Xbatch",
         "-XX:-TieredCompilation",
-        "-XX:CompileCommand=option,java/lang/String.hashCode,intx,RepeatCompilation,1000"
+        "-XX:CompileCommand=option," + METHOD + ",intx,RepeatCompilation,1000"
     })
-    public int hashCode_repeat1000() {
-        return hashCode();
+    public int mixHashCode_repeat_c2() {
+        return loop_hashCode();
     }
 
     @Benchmark
-    @Fork(value = 5)
-    public int hashCode_baseline() {
-        return hashCode();
+    @Fork(value = 5, jvmArgsAppend={
+        "-Xbatch",
+        "-XX:TieredStopAtLevel=1",
+        "-XX:CompileCommand=option," + METHOD + ",intx,RepeatCompilation,1000"
+    })
+    public int mixHashCode_repeat_c1() {
+        return loop_hashCode();
     }
 
-    public int hashCode() {
+    @Benchmark
+    @Fork(value = 5, jvmArgsAppend={
+        "-Xbatch" })
+    public int mixHashCode_baseline() {
+        return loop_hashCode();
+    }
+
+    public int loop_hashCode() {
         int value = 0;
         for (int i = 0; i < 1_000_000; i++) {
-            value += "constant".hashCode();
+            mixHashCode("simple_string");
         }
         return value;
+    }
+
+    public int mixHashCode(String value) {
+        int h = value.hashCode();
+        for (int i = 0; i < value.length(); i++) {
+            h = value.charAt(i) ^ h;
+        }
+        return h;
     }
 }
