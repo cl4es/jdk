@@ -331,8 +331,33 @@ public:
   static const int vector_width_in_bytes(BasicType bt);
 
   // Limits on vector size (number of elements).
-  static const int max_vector_size(const BasicType bt);
-  static const int min_vector_size(const BasicType bt);
+ private:
+  static const int pd_max_vector_size(const BasicType bt);
+  static const int pd_min_vector_size(const BasicType bt);
+  static int _max_vector_size_cache[T_LONG+1];
+  static int _min_vector_size_cache[T_LONG+1];
+
+ public:
+  static const int max_vector_size(const BasicType bt) {
+    assert(is_java_primitive(bt), "only primitive type vectors");
+    int val = _max_vector_size_cache[bt];
+    if (val == -1) {
+      val = pd_max_vector_size(bt);
+      _max_vector_size_cache[bt] = val;
+    }
+    return val;
+  }
+
+  static const int min_vector_size(const BasicType bt) {
+    assert(is_java_primitive(bt), "only primitive type vectors");
+    int val = _min_vector_size_cache[bt];
+    if (val == -1) {
+      val = pd_min_vector_size(bt);
+      _min_vector_size_cache[bt] = val;
+    }
+    return val;
+  }
+
   static const bool vector_size_supported(const BasicType bt, int size) {
     return (Matcher::max_vector_size(bt) >= size &&
             Matcher::min_vector_size(bt) <= size);

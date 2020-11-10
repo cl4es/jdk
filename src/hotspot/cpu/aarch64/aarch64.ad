@@ -2466,10 +2466,10 @@ const int Matcher::vector_width_in_bytes(BasicType bt) {
 }
 
 // Limits on vector size (number of elements) loaded into vector.
-const int Matcher::max_vector_size(const BasicType bt) {
+const int Matcher::pd_max_vector_size(const BasicType bt) {
   return vector_width_in_bytes(bt)/type2aelembytes(bt);
 }
-const int Matcher::min_vector_size(const BasicType bt) {
+const int Matcher::pd_min_vector_size(const BasicType bt) {
   int max_size = max_vector_size(bt);
   if ((UseSVE > 0) && (MaxVectorSize >= 16)) {
     // Currently vector length less than SVE vector register size is not supported.

@@ -58,6 +58,9 @@ RegMask Matcher::c_frame_ptr_mask;
 const uint Matcher::_begin_rematerialize = _BEGIN_REMATERIALIZE;
 const uint Matcher::_end_rematerialize   = _END_REMATERIALIZE;
 
+int Matcher::_max_vector_size_cache[T_LONG+1] = {-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1};
+int Matcher::_min_vector_size_cache[T_LONG+1] = {-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1};
+
 //---------------------------Matcher-------------------------------------------
 Matcher::Matcher()
 : PhaseTransform( Phase::Ins_Select ),
