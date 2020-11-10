@@ -2183,7 +2183,7 @@ const int Matcher::pd_max_vector_size(const BasicType bt) {
 }
 
 const int Matcher::pd_min_vector_size(const BasicType bt) {
-  return pd_max_vector_size(bt); // Same as max.
+  return max_vector_size(bt); // Same as max.
 }
 
 const bool Matcher::supports_scalable_vector() {
