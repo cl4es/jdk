@@ -289,6 +289,33 @@ class RegMask {
     assert(valid_watermarks(), "post-condition");
   }
 
+  // Insert range of registers into mask
+  void insert_range(OptoReg::Name from, OptoReg::Name to = CHUNK_SIZE) {
+    assert(from != OptoReg::Bad     && to != OptoReg::Bad,     "sanity");
+    assert(from != OptoReg::Special && to != OptoReg::Special, "sanity");
+    assert(from < CHUNK_SIZE && from < to && to <= CHUNK_SIZE, "sanity");
+    assert(valid_watermarks(), "pre-condition");
+    unsigned from_reg = (unsigned)from;
+    unsigned from_index = from_reg >> _LogWordBits;
+    unsigned to_reg = (unsigned)to - 1;
+    unsigned to_index = to_reg >> _LogWordBits;
+
+    uintptr_t from_mask = (~uintptr_t(0)) << (from_reg & (_WordBits - 1U));
+    uintptr_t to_mask   = (~uintptr_t(0)) >> (_WordBits - 1U - (to_reg & (_WordBits - 1U)));
+    if (from_index == to_index) {
+      _RM_UP[from_index] |= (from_mask & to_mask);
+    } else {
+      _RM_UP[from_index] |= from_mask;
+      _RM_UP[to_index]   |= to_mask;
+      for (unsigned index = from_index + 1; index < to_index; index++) {
+        _RM_UP[index] = ~uintptr_t(0);
+      }
+    }
+    if (to_index > _hwm)   _hwm = to_index;
+    if (from_index < _lwm) _lwm = from_index;
+    assert(valid_watermarks(), "post-condition");
+  }
+
   // Remove register from mask
   void Remove(OptoReg::Name reg) {
     assert(reg < CHUNK_SIZE, "");
@@ -304,6 +331,17 @@ class RegMask {
     if (_hwm < rm._hwm) _hwm = rm._hwm;
     for (unsigned i = _lwm; i <= _hwm; i++) {
       _RM_UP[i] |= rm._RM_UP[i];
+    }
+    assert(valid_watermarks(), "sanity");
+  }
+
+  // assign the result of ORing 'rm1' and 'rm2' into 'this'
+  void set_OR(const RegMask &rm1, const RegMask &rm2) {
+    assert(valid_watermarks() && rm1.valid_watermarks() && rm2.valid_watermarks(), "sanity");
+    _lwm = MIN2(rm1._lwm, rm2._lwm);
+    _hwm = MAX2(rm1._hwm, rm2._hwm);
+    for (unsigned i = _lwm; i <= _hwm; i++) {
+      _RM_UP[i] = rm1._RM_UP[i] | rm2._RM_UP[i];
     }
     assert(valid_watermarks(), "sanity");
   }

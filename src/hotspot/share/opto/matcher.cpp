@@ -494,57 +494,64 @@ void Matcher::init_first_stack_mask() {
 
   // Add in the incoming argument area
   OptoReg::Name init_in = OptoReg::add(_old_SP, C->out_preserve_stack_slots());
-  for (i = init_in; i < _in_arg_limit; i = OptoReg::add(i,1)) {
-    C->FIRST_STACK_mask().Insert(i);
-  }
+  C->FIRST_STACK_mask().insert_range(init_in, _in_arg_limit);
+
   // Add in all bits past the outgoing argument area
   guarantee(RegMask::can_represent_arg(OptoReg::add(_out_arg_limit,-1)),
             "must be able to represent all call arguments in reg mask");
   OptoReg::Name init = _out_arg_limit;
-  for (i = init; RegMask::can_represent(i); i = OptoReg::add(i,1)) {
-    C->FIRST_STACK_mask().Insert(i);
-  }
-  // Finally, set the "infinite stack" bit.
-  C->FIRST_STACK_mask().set_AllStack();
+  // Sets all bits, including the "infinite stack" bit.
+  C->FIRST_STACK_mask().insert_range(init);
+  assert(C->FIRST_STACK_mask().is_AllStack(), "sanity");
 
   // Make spill masks.  Registers for their class, plus FIRST_STACK_mask.
   RegMask aligned_stack_mask = C->FIRST_STACK_mask();
   // Keep spill masks aligned.
   aligned_stack_mask.clear_to_pairs();
   assert(aligned_stack_mask.is_AllStack(), "should be infinite stack");
-  RegMask scalable_stack_mask = aligned_stack_mask;
 
-  *idealreg2spillmask[Op_RegP] = *idealreg2regmask[Op_RegP];
+  if (Matcher::supports_scalable_vector()) {
+    RegMask scalable_stack_mask = aligned_stack_mask;
+    int k = 1;
+    OptoReg::Name in = OptoReg::add(_in_arg_limit, -1);
+    // Exclude last input arg stack slots to avoid spilling vector register there,
+    // otherwise vector spills could stomp over stack slots in caller frame.
+    for (; (in >= init_in) && (k < scalable_vector_reg_size(T_FLOAT)); k++) {
+      scalable_stack_mask.Remove(in);
+      in = OptoReg::add(in, -1);
+    }
+
+    // For VecA
+    scalable_stack_mask.clear_to_sets(RegMask::SlotsPerVecA);
+    assert(scalable_stack_mask.is_AllStack(), "should be infinite stack");
+    idealreg2spillmask[Op_VecA]->set_OR(*idealreg2regmask[Op_VecA], scalable_stack_mask);
+  } else {
+    assert(*idealreg2spillmask[Op_VecA]->Size() == 0, "must be empty already");
+  }
+
 #ifdef _LP64
-  *idealreg2spillmask[Op_RegN] = *idealreg2regmask[Op_RegN];
-   idealreg2spillmask[Op_RegN]->OR(C->FIRST_STACK_mask());
-   idealreg2spillmask[Op_RegP]->OR(aligned_stack_mask);
+  idealreg2spillmask[Op_RegN]->set_OR(*idealreg2regmask[Op_RegN], C->FIRST_STACK_mask());
+  idealreg2spillmask[Op_RegP]->set_OR(*idealreg2regmask[Op_RegP], aligned_stack_mask);
 #else
-   idealreg2spillmask[Op_RegP]->OR(C->FIRST_STACK_mask());
+  idealreg2spillmask[Op_RegP]->set_OR(*idealreg2regmask[Op_RegP], C->FIRST_STACK_mask());
 #endif
-  *idealreg2spillmask[Op_RegI] = *idealreg2regmask[Op_RegI];
-   idealreg2spillmask[Op_RegI]->OR(C->FIRST_STACK_mask());
-  *idealreg2spillmask[Op_RegL] = *idealreg2regmask[Op_RegL];
-   idealreg2spillmask[Op_RegL]->OR(aligned_stack_mask);
-  *idealreg2spillmask[Op_RegF] = *idealreg2regmask[Op_RegF];
-   idealreg2spillmask[Op_RegF]->OR(C->FIRST_STACK_mask());
-  *idealreg2spillmask[Op_RegD] = *idealreg2regmask[Op_RegD];
-   idealreg2spillmask[Op_RegD]->OR(aligned_stack_mask);
+  idealreg2spillmask[Op_RegI]->set_OR(*idealreg2regmask[Op_RegI], C->FIRST_STACK_mask());
+  idealreg2spillmask[Op_RegL]->set_OR(*idealreg2regmask[Op_RegL], aligned_stack_mask);
+  idealreg2spillmask[Op_RegF]->set_OR(*idealreg2regmask[Op_RegF], C->FIRST_STACK_mask());
+  idealreg2spillmask[Op_RegD]->set_OR(*idealreg2regmask[Op_RegD], aligned_stack_mask);
 
   if (Matcher::vector_size_supported(T_BYTE,4)) {
-    *idealreg2spillmask[Op_VecS] = *idealreg2regmask[Op_VecS];
-     idealreg2spillmask[Op_VecS]->OR(C->FIRST_STACK_mask());
+    idealreg2spillmask[Op_VecS]->set_OR(*idealreg2regmask[Op_VecS], C->FIRST_STACK_mask());
   } else {
-    *idealreg2spillmask[Op_VecS] = RegMask::Empty;
+    assert(*idealreg2spillmask[Op_VecS]->Size() == 0, "must be empty already");
   }
 
   if (Matcher::vector_size_supported(T_FLOAT,2)) {
     // For VecD we need dual alignment and 8 bytes (2 slots) for spills.
     // RA guarantees such alignment since it is needed for Double and Long values.
-    *idealreg2spillmask[Op_VecD] = *idealreg2regmask[Op_VecD];
-     idealreg2spillmask[Op_VecD]->OR(aligned_stack_mask);
+    idealreg2spillmask[Op_VecD]->set_OR(*idealreg2regmask[Op_VecD], aligned_stack_mask);
   } else {
-    *idealreg2spillmask[Op_VecD] = RegMask::Empty;
+    assert(*idealreg2spillmask[Op_VecD]->Size() == 0, "must be empty already");
   }
 
   if (Matcher::vector_size_supported(T_FLOAT,4)) {
@@ -560,12 +567,11 @@ void Matcher::init_first_stack_mask() {
       aligned_stack_mask.Remove(in);
       in = OptoReg::add(in, -1);
     }
-     aligned_stack_mask.clear_to_sets(RegMask::SlotsPerVecX);
-     assert(aligned_stack_mask.is_AllStack(), "should be infinite stack");
-    *idealreg2spillmask[Op_VecX] = *idealreg2regmask[Op_VecX];
-     idealreg2spillmask[Op_VecX]->OR(aligned_stack_mask);
+    aligned_stack_mask.clear_to_sets(RegMask::SlotsPerVecX);
+    assert(aligned_stack_mask.is_AllStack(), "should be infinite stack");
+    idealreg2spillmask[Op_VecX]->set_OR(*idealreg2regmask[Op_VecX], aligned_stack_mask);
   } else {
-    *idealreg2spillmask[Op_VecX] = RegMask::Empty;
+    assert(*idealreg2spillmask[Op_VecX]->Size() == 0, "must be empty already");
   }
 
   if (Matcher::vector_size_supported(T_FLOAT,8)) {
@@ -575,12 +581,11 @@ void Matcher::init_first_stack_mask() {
       aligned_stack_mask.Remove(in);
       in = OptoReg::add(in, -1);
     }
-     aligned_stack_mask.clear_to_sets(RegMask::SlotsPerVecY);
-     assert(aligned_stack_mask.is_AllStack(), "should be infinite stack");
-    *idealreg2spillmask[Op_VecY] = *idealreg2regmask[Op_VecY];
-     idealreg2spillmask[Op_VecY]->OR(aligned_stack_mask);
+    aligned_stack_mask.clear_to_sets(RegMask::SlotsPerVecY);
+    assert(aligned_stack_mask.is_AllStack(), "should be infinite stack");
+    idealreg2spillmask[Op_VecY]->set_OR(*idealreg2regmask[Op_VecY], aligned_stack_mask);
   } else {
-    *idealreg2spillmask[Op_VecY] = RegMask::Empty;
+    assert(*idealreg2spillmask[Op_VecY]->Size() == 0, "must be empty already");
   }
 
   if (Matcher::vector_size_supported(T_FLOAT,16)) {
@@ -590,31 +595,11 @@ void Matcher::init_first_stack_mask() {
       aligned_stack_mask.Remove(in);
       in = OptoReg::add(in, -1);
     }
-     aligned_stack_mask.clear_to_sets(RegMask::SlotsPerVecZ);
-     assert(aligned_stack_mask.is_AllStack(), "should be infinite stack");
-    *idealreg2spillmask[Op_VecZ] = *idealreg2regmask[Op_VecZ];
-     idealreg2spillmask[Op_VecZ]->OR(aligned_stack_mask);
+    aligned_stack_mask.clear_to_sets(RegMask::SlotsPerVecZ);
+    assert(aligned_stack_mask.is_AllStack(), "should be infinite stack");
+    idealreg2spillmask[Op_VecZ]->set_OR(*idealreg2regmask[Op_VecZ], aligned_stack_mask);
   } else {
-    *idealreg2spillmask[Op_VecZ] = RegMask::Empty;
-  }
-
-  if (Matcher::supports_scalable_vector()) {
-    int k = 1;
-    OptoReg::Name in = OptoReg::add(_in_arg_limit, -1);
-    // Exclude last input arg stack slots to avoid spilling vector register there,
-    // otherwise vector spills could stomp over stack slots in caller frame.
-    for (; (in >= init_in) && (k < scalable_vector_reg_size(T_FLOAT)); k++) {
-      scalable_stack_mask.Remove(in);
-      in = OptoReg::add(in, -1);
-    }
-
-    // For VecA
-     scalable_stack_mask.clear_to_sets(RegMask::SlotsPerVecA);
-     assert(scalable_stack_mask.is_AllStack(), "should be infinite stack");
-    *idealreg2spillmask[Op_VecA] = *idealreg2regmask[Op_VecA];
-     idealreg2spillmask[Op_VecA]->OR(scalable_stack_mask);
-  } else {
-    *idealreg2spillmask[Op_VecA] = RegMask::Empty;
+    assert(*idealreg2spillmask[Op_VecZ]->Size() == 0, "must be empty already");
   }
 
   if (UseFPUForSpilling) {
@@ -911,14 +896,10 @@ void Matcher::init_spill_mask( Node *ret ) {
   // Start at OptoReg::stack0()
   STACK_ONLY_mask.Clear();
   OptoReg::Name init = OptoReg::stack2reg(0);
-  // STACK_ONLY_mask is all stack bits
-  OptoReg::Name i;
-  for (i = init; RegMask::can_represent(i); i = OptoReg::add(i,1))
-    STACK_ONLY_mask.Insert(i);
-  // Also set the "infinite stack" bit.
-  STACK_ONLY_mask.set_AllStack();
+  // STACK_ONLY_mask is all stack bits, including the "infinite stack" bit.
+  STACK_ONLY_mask.insert_range(init);
 
-  for (i = OptoReg::Name(0); i < OptoReg::Name(_last_Mach_Reg); i = OptoReg::add(i, 1)) {
+  for (OptoReg::Name i = OptoReg::Name(0); i < OptoReg::Name(_last_Mach_Reg); i = OptoReg::add(i, 1)) {
     // Copy the register names over into the shared world.
     // SharedInfo::regName[i] = regName[i];
     // Handy RegMasks per machine register
@@ -1382,8 +1363,7 @@ MachNode *Matcher::match_sfpt( SafePointNode *sfpt ) {
     if (!RegMask::can_represent_arg(OptoReg::Name(out_arg_limit_per_call-1))) {
       C->record_method_not_compilable("unsupported outgoing calling sequence");
     } else {
-      for (int i = begin_out_arg_area; i < out_arg_limit_per_call; i++)
-        proj->_rout.Insert(OptoReg::Name(i));
+      proj->_rout.insert_range(OptoReg::Name(begin_out_arg_area), OptoReg::Name(out_arg_limit_per_call));
     }
     if (proj->_rout.is_NotEmpty()) {
       push_projection(proj);
