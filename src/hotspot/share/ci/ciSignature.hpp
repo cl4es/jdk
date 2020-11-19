@@ -48,7 +48,6 @@ private:
   friend class ciObjectFactory;
 
   ciSignature(ciKlass* accessing_klass, const constantPoolHandle& cpool, ciSymbol* signature);
-  ciSignature(ciKlass* accessing_klass,                           ciSymbol* signature, ciMethodType* method_type);
 
   Symbol* get_symbol() const                     { return _symbol->get_symbol(); }
 

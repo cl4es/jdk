@@ -41,15 +41,6 @@ ciSymbol::ciSymbol(Symbol* s, vmSymbolID sid)
   assert(sid_ok(), "must be in vmSymbols");
 }
 
-// Normal case for non-famous symbols.
-ciSymbol::ciSymbol(Symbol* s)
-  : _symbol(s), _sid(vmSymbolID::NO_SID)
-{
-  assert(_symbol != NULL, "adding null symbol");
-  _symbol->increment_refcount();  // increment ref count
-  assert(sid_ok(), "must not be in vmSymbols");
-}
-
 // ciSymbol
 //
 // This class represents a Symbol* in the HotSpot virtual
