@@ -39,9 +39,9 @@ private:
   ciSymbol* _symbol;
   ciKlass*  _accessing_klass;
 
-  GrowableArray<ciType*>* _types;
+  GrowableArray<ciType*> _types; // parameter types
+  ciType* _return_type; // return type
   int _size;   // number of stack slots required for arguments
-  int _count;  // number of parameter types in the signature
 
   friend class ciMethod;
   friend class ciBytecodeStream;
@@ -55,11 +55,11 @@ public:
   ciSymbol* as_symbol() const                    { return _symbol; }
   ciKlass*  accessing_klass() const              { return _accessing_klass; }
 
-  ciType*   return_type() const;
-  ciType*   type_at(int index) const;
+  ciType*   return_type() const                  { return _return_type; }
+  ciType*   type_at(int index) const             { return _types.at(index); }
 
   int       size() const                         { return _size; }
-  int       count() const                        { return _count; }
+  int       count() const                        { return _types.length(); }
 
   int       arg_size_for_bc(Bytecodes::Code bc)  { return size() + (Bytecodes::has_receiver(bc) ? 1 : 0); }
 
