@@ -101,7 +101,7 @@ struct OopFlow : public ResourceObj {
   static OopFlow* make(Arena* arena, int max_size, Compile* C);
 
   // Build an oopmap from the current flow info
-  OopMap* build_oop_map(Node* n, int max_reg, PhaseRegAlloc*regalloc, int* live, JVMState* jvms);
+  OopMap* build_oop_map(Node* n, int max_reg, PhaseRegAlloc* regalloc, int* live, JVMState* jvms);
 };
 
 // Given reaching-defs for this block start, compute it for this block end
@@ -116,7 +116,7 @@ void OopFlow::compute_reach(PhaseRegAlloc* regalloc, int max_reg, Dict* safehash
       if (n->is_MachSafePoint() && !n->is_MachCallLeaf()) {
         int* live = (int*) (*safehash)[n];
         assert(live, "must find live");
-        n->as_MachSafePoint()->set_oop_map(build_oop_map(n, max_reg,regalloc, live, jvms));
+        n->as_MachSafePoint()->set_oop_map(build_oop_map(n, max_reg, regalloc, live, jvms));
       }
     }
 
@@ -190,15 +190,15 @@ static void clr_live_bit(int* live, int reg) {
 OopMap* OopFlow::build_oop_map(Node* n, int max_reg, PhaseRegAlloc* regalloc, int* live, JVMState* jvms) {
   int framesize = regalloc->_framesize;
   int max_inarg_slot = OptoReg::reg2stack(regalloc->_matcher._new_SP);
-  debug_only(char* dup_check = NEW_RESOURCE_ARRAY(char,OptoReg::stack0());
-             memset(dup_check,0,OptoReg::stack0()));
+  debug_only(char* dup_check = NEW_RESOURCE_ARRAY(char, OptoReg::stack0());
+             memset(dup_check, 0, OptoReg::stack0()));
 
-  OopMap* omap = new OopMap(framesize,  max_inarg_slot);
+  OopMap* omap = new OopMap(framesize, max_inarg_slot);
   MachCallNode* mcall = n->is_MachCall() ? n->as_MachCall() : NULL;
 
   // For all registers do...
   for (int reg = 0; reg < max_reg; reg++) {
-    if (get_live_bit(live,reg) == 0) {
+    if (get_live_bit(live, reg) == 0) {
       continue;                 // Ignore if not live
     }
 
@@ -227,7 +227,7 @@ OopMap* OopFlow::build_oop_map(Node* n, int max_reg, PhaseRegAlloc* regalloc, in
       // Make sure both are record from the same reaching def, but do not
       // put both into the oopmap.
       if ((reg&1) == 1) {      // High half of oop-pair?
-        assert(_defs[reg-1] == _defs[reg], "both halves from same reaching def");
+        assert(_defs[reg - 1] == _defs[reg], "both halves from same reaching def");
         continue;               // Do not record high parts in oopmap
       }
 #endif
@@ -498,7 +498,7 @@ static void do_liveness(PhaseRegAlloc* regalloc, PhaseCFG* cfg, Block_List* work
           // hence live, but NOT included in the oopmap.  See cutout in
           // build_oop_map.  Debug oops are live (and in OopMap).
           int* n_live = NEW_ARENA_ARRAY(arena, int, max_reg_ints);
-          for (int l=0; l<max_reg_ints; l++) {
+          for (int l = 0; l < max_reg_ints; l++) {
             n_live[l] = tmp_live[l];
           }
           safehash->Insert(n, n_live);
@@ -508,7 +508,7 @@ static void do_liveness(PhaseRegAlloc* regalloc, PhaseCFG* cfg, Block_List* work
 
       // Now at block top, see if we have any changes.  If so, propagate
       // to prior blocks.
-      int* old_live = &live[b->_pre_order*max_reg_ints];
+      int* old_live = &live[b->_pre_order * max_reg_ints];
       int l;
       for (l = 0; l < max_reg_ints; l++) {
         if (tmp_live[l] != old_live[l]) {
