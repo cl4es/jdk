@@ -24,12 +24,15 @@ package org.openjdk.bench.java.net;
 
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
+import org.openjdk.jmh.annotations.Fork;
+import org.openjdk.jmh.annotations.Measurement;
 import org.openjdk.jmh.annotations.Mode;
 import org.openjdk.jmh.annotations.OutputTimeUnit;
 import org.openjdk.jmh.annotations.Param;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
+import org.openjdk.jmh.annotations.Warmup;
 import org.openjdk.jmh.infra.Blackhole;
 
 import java.io.UnsupportedEncodingException;
@@ -42,58 +45,94 @@ import java.util.concurrent.TimeUnit;
  */
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(TimeUnit.MILLISECONDS)
+@Fork(jvmArgsAppend = {"-Xms2g", "-Xmx2g"})
+@Warmup(iterations = 5, time = 2)
+@Measurement(iterations = 5, time = 5)
 @State(Scope.Thread)
 public class URLEncodeDecode {
 
-    @Param("1024")
+    @Param("512")
     public int count;
 
-    @Param("1024")
+    @Param("128")
     public int maxLength;
 
     @Param("3")
     public long mySeed;
 
-    public String[] testStringsEncode;
+    public String[] testStringsEncodeNoneEncode;
+    public String[] testStringsEncodeSomeEncode;
+    public String[] testStringsEncodeMostEncode;
     public String[] testStringsDecode;
     public String[] toStrings;
 
     @Setup
     public void setupStrings() {
-        char[] tokens = new char[((int) 'Z' - (int) 'A' + 1) + ((int) 'z' - (int) 'a' + 1) + ((int) '9' - (int) '1' + 1) + 5];
-        int n = 0;
-        tokens[n++] = '0';
-        for (int i = (int) '1'; i <= (int) '9'; i++) {
-            tokens[n++] = (char) i;
+        StringBuilder sb = new StringBuilder();
+        for (char c = '0'; c <= '9'; c++) {
+            sb.append(c);
         }
-        for (int i = (int) 'A'; i <= (int) 'Z'; i++) {
-            tokens[n++] = (char) i;
+        for (char c = 'A'; c <= 'Z'; c++) {
+            sb.append(c);
         }
-        for (int i = (int) 'a'; i <= (int) '<'; i++) {
-            tokens[n++] = (char) i;
+        for (char c = 'a'; c <= 'z'; c++) {
+            sb.append(c);
         }
-        tokens[n++] = '-';
-        tokens[n++] = '_';
-        tokens[n++] = '.';
-        tokens[n++] = '*';
+        sb.append('-');
+        sb.append('_');
+        sb.append('.');
+        sb.append('*');
+        char[] tokens = sb.toString().toCharArray();
 
         Random r = new Random(mySeed);
-        testStringsEncode = new String[count];
+        testStringsEncodeNoneEncode = new String[count];
+        testStringsEncodeSomeEncode = new String[count];
+        testStringsEncodeMostEncode = new String[count];
         testStringsDecode = new String[count];
         toStrings = new String[count];
         for (int i = 0; i < count; i++) {
             int l = r.nextInt(maxLength);
-            StringBuilder sb = new StringBuilder();
+
+            // Strings requiring no encoding at all
+            sb = new StringBuilder();
             for (int j = 0; j < l; j++) {
                 int c = r.nextInt(tokens.length);
                 sb.append(tokens[c]);
             }
-            testStringsEncode[i] = sb.toString();
+            testStringsEncodeNoneEncode[i] = sb.toString();
+
+            // Strings requiring some or no encoding
+            for (int j = 0; j < l; j++) {
+                int c = r.nextInt(100);
+                if (c < 10) {
+                    sb.replace(j, j + 1, String.valueOf(' '));
+                }
+                if (c > 95) {
+                    sb.replace(j, j + 1, String.valueOf('\u0344'));
+                }
+            }
+            testStringsEncodeSomeEncode[i] = sb.toString();
+
+            // Mostly Strings requiring a lot of encoding. Mixed in with
+            // some strings requiring some or no encoding.
+            int c = r.nextInt(100);
+            if (c >= 98) {
+                testStringsEncodeMostEncode[i] = testStringsEncodeNoneEncode[i];
+            } else if (c <= 5) {
+                testStringsEncodeMostEncode[i] = testStringsEncodeSomeEncode[i];
+            } else {
+                // Generate completely random String
+                sb = new StringBuilder();
+                for (int j = 0; j < l; j++) {
+                    sb.append((char) r.nextInt(20000));
+                }
+                testStringsEncodeMostEncode[i] = sb.toString();
+            }
         }
 
         for (int i = 0; i < count; i++) {
             int l = r.nextInt(maxLength);
-            StringBuilder sb = new StringBuilder();
+            sb = new StringBuilder();
             for (int j = 0; j < l; j++) {
                 int c = r.nextInt(tokens.length + 5);
                 if (c >= tokens.length) {
@@ -107,8 +146,22 @@ public class URLEncodeDecode {
     }
 
     @Benchmark
-    public void testEncodeUTF8(Blackhole bh) throws UnsupportedEncodingException {
-        for (String s : testStringsEncode) {
+    public void testEncodeUTF8NoEncode(Blackhole bh) throws UnsupportedEncodingException {
+        for (String s : testStringsEncodeNoneEncode) {
+            bh.consume(java.net.URLEncoder.encode(s, "UTF-8"));
+        }
+    }
+
+    @Benchmark
+    public void testEncodeUTF8SomeEncode(Blackhole bh) throws UnsupportedEncodingException {
+        for (String s : testStringsEncodeSomeEncode) {
+            bh.consume(java.net.URLEncoder.encode(s, "UTF-8"));
+        }
+    }
+
+    @Benchmark
+    public void testEncodeUTF8MostEncode(Blackhole bh) throws UnsupportedEncodingException {
+        for (String s : testStringsEncodeMostEncode) {
             bh.consume(java.net.URLEncoder.encode(s, "UTF-8"));
         }
     }
