@@ -27,6 +27,7 @@ import org.openjdk.jmh.infra.Blackhole;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -42,7 +43,7 @@ public class FileToPath {
 
     public File normalFile;
     public File trailingSlash;
-    public File notNormalizedFile = "/test/dir/file//name.txt";
+    public File notNormalizedFile;
 
 
     @Setup
