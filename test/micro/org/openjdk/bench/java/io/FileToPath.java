@@ -26,7 +26,6 @@ import org.openjdk.jmh.annotations.*;
 import org.openjdk.jmh.infra.Blackhole;
 
 import java.io.File;
-import java.io.IOException;
 import java.nio.file.Path;
 import java.util.concurrent.TimeUnit;
 
@@ -34,45 +33,40 @@ import java.util.concurrent.TimeUnit;
  * Tests the overheads of creating Paths from a File.
  */
 @BenchmarkMode(Mode.AverageTime)
-@OutputTimeUnit(TimeUnit.MICROSECONDS)
+@OutputTimeUnit(TimeUnit.NANOSECONDS)
 @State(Scope.Thread)
 @Warmup(time=2, iterations=5)
 @Measurement(time=3, iterations=5)
-@Fork(value=2, jvmArgs="-Xmx1g")
+@Fork(value=3, jvmArgs="-Xmx1g")
 public class FileToPath {
 
-    public File normalFile;
-    public File trailingSlash;
-    public File notNormalizedFile;
+    public String normalFile = "/test/dir/file/name.txt";
+    public String root = "/";
+    public String trailingSlash = "/test/dir/file/name.txt/";
+    public String notNormalizedFile = "/test/dir/file//name.txt";
 
-
-    @Setup
-    public void setup() throws IOException {
-        normalFile = new File("/test/dir/file/name.txt");
-        trailingSlash = new File("/test/dir/file/name.txt/");
-        notNormalizedFile = new File("/test/dir/file//name.txt");
-    }
 
     @Benchmark
-    public void mix(Blackhole bh) {
-        bh.consume(normalFile.toPath());
-        bh.consume(trailingSlash.toPath());
-        bh.consume(notNormalizedFile.toPath());
+    public void mix(Blackhole bh)  {
+        bh.consume(new File(normalFile).toPath());
+        bh.consume(new File(trailingSlash).toPath());
+        bh.consume(new File(root).toPath());
+        bh.consume(new File(notNormalizedFile).toPath());
     }
 
     @Benchmark
     public Path normalized() {
-        return normalFile.toPath();
+        return new File(normalFile).toPath();
     }
 
     @Benchmark
     public Path trailingSlash() {
-        return trailingSlash.toPath();
+        return new File(trailingSlash).toPath();
     }
 
     @Benchmark
     public Path notNormalized() {
-        return notNormalizedFile.toPath();
+        return new File(notNormalizedFile).toPath();
     }
 
 }
