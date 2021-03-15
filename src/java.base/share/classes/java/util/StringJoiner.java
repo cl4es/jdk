@@ -148,12 +148,6 @@ public final class StringJoiner {
         return this;
     }
 
-    private static int getChars(String s, char[] chars, int start) {
-        int len = s.length();
-        s.getChars(0, len, chars, start);
-        return len;
-    }
-
     /**
      * Returns the current value, consisting of the {@code prefix}, the values
      * added so far separated by the {@code delimiter}, and the {@code suffix},
