@@ -175,17 +175,17 @@ public final class StringJoiner {
             return size == 0 ? "" : elts[0];
         }
         final String delimiter = this.delimiter;
-        final char[] chars = new char[len + addLen];
-        int k = getChars(prefix, chars, 0);
+        StringBuilder sb = new StringBuilder(len + addLen);
+        sb.append(prefix);
         if (size > 0) {
-            k += getChars(elts[0], chars, k);
+            sb.append(elts[0]);
             for (int i = 1; i < size; i++) {
-                k += getChars(delimiter, chars, k);
-                k += getChars(elts[i], chars, k);
+                sb.append(delimiter);
+                sb.append(elts[i]);
             }
         }
-        k += getChars(suffix, chars, k);
-        return new String(chars);
+        sb.append(suffix);
+        return sb.toString();
     }
 
     /**
@@ -249,15 +249,16 @@ public final class StringJoiner {
 
     private void compactElts() {
         if (size > 1) {
-            final char[] chars = new char[len];
-            int i = 1, k = getChars(elts[0], chars, 0);
+            StringBuilder sb = new StringBuilder(len);
+            sb.append(elts[0]);
+            int i = 0;
             do {
-                k += getChars(delimiter, chars, k);
-                k += getChars(elts[i], chars, k);
+                sb.append(delimiter);
+                sb.append(elts[i]);
                 elts[i] = null;
             } while (++i < size);
             size = 1;
-            elts[0] = new String(chars);
+            elts[0] = sb.toString();
         }
     }
 
