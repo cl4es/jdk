@@ -87,7 +87,9 @@ public class StringJoinerBenchmark {
 
         private static String getAlphabet(int index, String mode) {
             var latin = "abcdefghijklmnopqrstuvwxyz"; //English
-            var cyrillic = "абвгдеёжзиклмнопрстуфхцчшщьыъэюя"; // Russian
+            StringBuilder sb = new StringBuilder();
+            latin.codePoints().forEach(cp -> sb.append(cp - 'a' + '\u0430'));
+            var cyrillic = sb.toString(); // Russian (partial, matching length of latin alphabet)
 
             String alphabet;
             switch (mode) {
