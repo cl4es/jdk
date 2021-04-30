@@ -2782,11 +2782,12 @@ void AdapterHandlerLibrary::initialize() {
 
     _buffer = BufferBlob::create("adapters", AdapterHandlerLibrary_size);
 
-    _no_arg_handler = create_adapter(no_arg_blob, 0, NULL, true);
-    _obj_arg_handler = create_adapter(obj_arg_blob, 1, obj_args, true);
-    _int_arg_handler = create_adapter(int_arg_blob, 1, int_args, true);
-    _obj_int_arg_handler = create_adapter(obj_int_arg_blob, 2, obj_int_args, true);
-    _obj_obj_arg_handler = create_adapter(obj_obj_arg_blob, 2, obj_obj_args, true);
+    uint64_t zero_fp = SignatureIterator::zero_fingerprint();
+    _no_arg_handler = create_adapter(no_arg_blob, zero_fp, 0, NULL, true);
+    _obj_arg_handler = create_adapter(obj_arg_blob, zero_fp, 1, obj_args, true);
+    _int_arg_handler = create_adapter(int_arg_blob, zero_fp, 1, int_args, true);
+    _obj_int_arg_handler = create_adapter(obj_int_arg_blob, zero_fp, 2, obj_int_args, true);
+    _obj_obj_arg_handler = create_adapter(obj_obj_arg_blob, zero_fp, 2, obj_obj_args, true);
 
     assert(no_arg_blob != NULL &&
           obj_arg_blob != NULL &&
