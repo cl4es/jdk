@@ -679,6 +679,7 @@ class AdapterHandlerEntry : public BasicHashtableEntry<mtCode> {
 
 class AdapterHandlerLibrary: public AllStatic {
   friend class SharedRuntime;
+
  private:
   static BufferBlob* _buffer; // the temporary code buffer in CodeCache
   static AdapterHandlerTable* _adapters;
@@ -692,6 +693,7 @@ class AdapterHandlerLibrary: public AllStatic {
   static BufferBlob* buffer_blob();
   static void initialize();
   static AdapterHandlerEntry* create_adapter(AdapterBlob*& new_adapter,
+                                             uint64_t method_fingerprint,
                                              int total_args_passed,
                                              BasicType* sig_bt,
                                              bool allocate_code_blob);

@@ -70,6 +70,7 @@
 #include "runtime/vframe.inline.hpp"
 #include "runtime/vframeArray.hpp"
 #include "runtime/vm_version.hpp"
+#include "utilities/concurrentHashTable.inline.hpp"
 #include "utilities/copy.hpp"
 #include "utilities/dtrace.hpp"
 #include "utilities/events.hpp"
@@ -2671,9 +2672,82 @@ static void post_adapter_creation(const AdapterBlob* new_adapter, const AdapterH
   }
 }
 
+class AdapterHandlerFilterEntry : public CHeapObj<mtInternal> {
+private:
+  uint64_t _fp;
+  AdapterHandlerEntry* _entry;
+public:
+  AdapterHandlerFilterEntry(uint64_t fp, AdapterHandlerEntry* entry) :
+    _fp(fp), _entry(entry) {}
+
+  uint64_t fingerprint() const { return _fp; }
+  AdapterHandlerEntry* entry() const { return _entry; }
+};
+
+class AdapterHandlerFilterConfig : public AllStatic {
+  public:
+    typedef AdapterHandlerFilterEntry* Value;
+
+    static uintx get_hash(Value const& value, bool* is_dead) {
+      uint64_t fp = value->fingerprint();
+      return primitive_hash(fp);
+    }
+    static void* allocate_node(size_t size, Value const& value) {
+      return AllocateHeap(size, mtInternal);
+    }
+    static void free_node(void* memory, Value const& value) {
+      delete value;
+      FreeHeap(memory);
+    }
+};
+
+typedef ConcurrentHashTable<AdapterHandlerFilterConfig, mtInternal> AdapterHandlerFilterTable;
+
+class AdapterHandlerFilterTableLookup : public StackObj {
+private:
+  uint64_t _fp;
+  uintx _hash;
+public:
+  AdapterHandlerFilterTableLookup(uint64_t fp)
+    : _fp(fp), _hash(primitive_hash(fp)) {}
+  uintx get_hash() const {
+    return _hash;
+  }
+  bool equals(AdapterHandlerFilterEntry** value, bool* is_dead) {
+    return primitive_equals(_fp, (*value)->fingerprint());
+  }
+};
+
+class AdapterHandlerGet : public StackObj {
+private:
+  AdapterHandlerEntry* _return;
+public:
+  AdapterHandlerGet(): _return(NULL) {}
+  void operator()(AdapterHandlerFilterEntry** val) {
+    _return = (*val)->entry();
+  }
+  AdapterHandlerEntry* get_entry() {
+    return _return;
+  }
+};
+
+static AdapterHandlerFilterTable* volatile _adapter_filter_table = NULL;
+
+static bool add_filter(AdapterHandlerEntry* entry, uint64_t method_fp) {
+  if (SignatureIterator::fp_is_valid(method_fp)) {
+    uint64_t param_fp = SignatureIterator::fp_ignore_return_type(method_fp);
+    Thread* thread = Thread::current();
+    AdapterHandlerFilterTableLookup lookup(param_fp);
+    AdapterHandlerFilterEntry* filter_entry = new AdapterHandlerFilterEntry(param_fp, entry);
+    // The hash table takes ownership of the AdapterHandlerFilterEntry,
+    // even if it's not inserted.
+    return _adapter_filter_table->insert(thread, lookup, filter_entry);
+  }
+  return false;
+}
+
 void AdapterHandlerLibrary::initialize() {
 
-  ResourceMark rm;
   AdapterBlob* no_arg_blob = NULL;
 
   AdapterBlob* int_arg_blob = NULL;
@@ -2688,11 +2762,13 @@ void AdapterHandlerLibrary::initialize() {
   AdapterBlob* obj_obj_arg_blob = NULL;
   BasicType    obj_obj_args[] = { T_OBJECT, T_OBJECT };
 
+  ResourceMark rm;
   {
     MutexLocker mu(AdapterHandlerLibrary_lock);
     assert(_adapters == NULL, "Initializing more than once");
 
     _adapters = new AdapterHandlerTable();
+    _adapter_filter_table = new AdapterHandlerFilterTable(10, 10);
 
     // Create a special handler for abstract methods.  Abstract methods
     // are never compiled so an i2c entry is somewhat meaningless, but
@@ -2780,7 +2856,22 @@ AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter(const methodHandle& meth
   // the AdapterHandlerTable (it is not safe for concurrent readers
   // and a single writer: this could be fixed if it becomes a
   // problem).
-  assert(_adapters != NULL, "Uninitialized");
+  assert(_adapter_filter_table != NULL, "Not initialized");
+
+  if (method->is_abstract()) {
+    return _abstract_method_handler;
+  }
+
+  uint64_t method_fp = method->constMethod()->fingerprint();
+  if (SignatureIterator::fp_is_valid(method_fp)) {
+    uint64_t param_fp = SignatureIterator::fp_ignore_return_type(method_fp);
+    Thread* thread = Thread::current();
+    AdapterHandlerFilterTableLookup lookup(param_fp);
+    AdapterHandlerGet ahg;
+    if (_adapter_filter_table->get(thread, lookup, ahg)) {
+      return ahg.get_entry();
+    }
+  }
 
   // Fast-path for trivial adapters
   AdapterHandlerEntry* entry = get_simple_adapter(method);
@@ -2790,45 +2881,45 @@ AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter(const methodHandle& meth
 
   ResourceMark rm;
   AdapterBlob* new_adapter = NULL;
-
-  // Fill in the signature array, for the calling-convention call.
-  int total_args_passed = method->size_of_parameters(); // All args on stack
-
-  BasicType stack_sig_bt[16];
-  BasicType* sig_bt = (total_args_passed <= 16) ? stack_sig_bt : NEW_RESOURCE_ARRAY(BasicType, total_args_passed);
-
-  int i = 0;
-  if (!method->is_static())  // Pass in receiver first
-    sig_bt[i++] = T_OBJECT;
-  for (SignatureStream ss(method->signature()); !ss.at_return_type(); ss.next()) {
-    sig_bt[i++] = ss.type();  // Collect remaining bits of signature
-    if (ss.type() == T_LONG || ss.type() == T_DOUBLE)
-      sig_bt[i++] = T_VOID;   // Longs & doubles take 2 Java slots
-  }
-
+  AdapterFingerPrint* fingerprint = NULL;
   {
     MutexLocker mu(AdapterHandlerLibrary_lock);
 
+    // Fill in the signature array, for the calling-convention call.
+    int total_args_passed = method->size_of_parameters(); // All args on stack
+    BasicType stack_sig_bt[16];
+    BasicType* sig_bt = (total_args_passed <= 16) ? stack_sig_bt : NEW_RESOURCE_ARRAY(BasicType, total_args_passed);
+
+    int i = 0;
+    if (!method->is_static())  // Pass in receiver first
+      sig_bt[i++] = T_OBJECT;
+    for (SignatureStream ss(method->signature()); !ss.at_return_type(); ss.next()) {
+      sig_bt[i++] = ss.type();  // Collect remaining bits of signature
+      if (ss.type() == T_LONG || ss.type() == T_DOUBLE)
+        sig_bt[i++] = T_VOID;   // Longs & doubles take 2 Java slots
+    }
     assert(i == total_args_passed, "");
 
     // Lookup method signature's fingerprint
     entry = _adapters->lookup(total_args_passed, sig_bt);
 
-    if (entry != NULL) {
 #ifdef ASSERT
-      if (VerifyAdapterSharing) {
-        AdapterBlob* comparison_blob = NULL;
-        AdapterHandlerEntry* comparison_entry = create_adapter(comparison_blob, total_args_passed, sig_bt, false);
-        assert(comparison_blob == NULL, "no blob should be created when creating an adapter for comparison");
-        assert(comparison_entry->compare_code(entry), "code must match");
-        // Release the one just created and return the original
-        _adapters->free_entry(comparison_entry);
-      }
+    if (VerifyAdapterSharing) {
+      AdapterBlob* comparison_blob = NULL;
+      AdapterHandlerEntry* comparison_entry = create_adapter(comparison_blob, total_args_passed, sig_bt, false);
+      assert(comparison_blob == NULL, "no blob should be created when creating an adapter for comparison");
+      assert(comparison_entry->compare_code(entry), "code must match");
+      // Release the one just created and return the original
+      _adapters->free_entry(comparison_entry);
+    }
 #endif
+
+    if (entry != NULL) {
+      add_filter(entry, method_fp);
       return entry;
     }
 
-    entry = create_adapter(new_adapter, total_args_passed, sig_bt, /* allocate_code_blob */ true);
+    entry = create_adapter(new_adapter, method_fp, total_args_passed, sig_bt, /* allocate_code_blob */ true);
   }
 
   // Outside of the lock
@@ -2839,6 +2930,7 @@ AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter(const methodHandle& meth
 }
 
 AdapterHandlerEntry* AdapterHandlerLibrary::create_adapter(AdapterBlob*& new_adapter,
+                                                           uint64_t method_fingerprint,
                                                            int total_args_passed,
                                                            BasicType* sig_bt,
                                                            bool allocate_code_blob) {
@@ -2904,12 +2996,11 @@ AdapterHandlerEntry* AdapterHandlerLibrary::create_adapter(AdapterBlob*& new_ada
         tty->cr();
       }
     }
-  }
 #endif
-
   // Add the entry only if the entry contains all required checks (see sharedRuntime_xxx.cpp)
   // The checks are inserted only if -XX:+VerifyAdapterCalls is specified.
   if (contains_all_checks || !VerifyAdapterCalls) {
+    add_filter(entry, method_fingerprint);
     _adapters->add(entry);
   }
   return entry;
