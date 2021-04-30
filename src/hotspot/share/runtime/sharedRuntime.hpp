@@ -678,6 +678,8 @@ class AdapterHandlerEntry : public BasicHashtableEntry<mtCode> {
 };
 
 class AdapterHandlerLibrary: public AllStatic {
+  friend class SharedRuntime;
+
  private:
   static BufferBlob* _buffer; // the temporary code buffer in CodeCache
   static AdapterHandlerTable* _adapters;

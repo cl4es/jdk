@@ -172,6 +172,7 @@ class SignatureIterator: public ResourceObj {
 
     fp_result_feature_size    = 4,
     fp_result_feature_mask    = right_n_bits(fp_result_feature_size),
+    fp_result_feature_anti_mask = ~(fp_result_feature_mask << fp_static_feature_size),
     fp_parameter_feature_size = 4,
     fp_parameter_feature_mask = right_n_bits(fp_parameter_feature_size),
 
@@ -241,6 +242,10 @@ class SignatureIterator: public ResourceObj {
   static fingerprint_t fp_start_parameters(fingerprint_t fingerprint) {
     assert(fp_is_valid(fingerprint), "invalid fingerprint");
     return fingerprint >> (fp_static_feature_size + fp_result_feature_size);
+  }
+  static fingerprint_t fp_ignore_return_type(fingerprint_t fingerprint) {
+    assert(fp_is_valid(fingerprint), "invalid fingerprint");
+    return fingerprint & fp_result_feature_anti_mask;
   }
   static BasicType fp_next_parameter(fingerprint_t& mask) {
     int result = (mask & fp_parameter_feature_mask);

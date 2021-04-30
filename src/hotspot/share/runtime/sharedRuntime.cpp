@@ -70,6 +70,7 @@
 #include "runtime/vframe.inline.hpp"
 #include "runtime/vframeArray.hpp"
 #include "runtime/vm_version.hpp"
+#include "utilities/concurrentHashTable.inline.hpp"
 #include "utilities/copy.hpp"
 #include "utilities/dtrace.hpp"
 #include "utilities/events.hpp"
@@ -108,6 +109,8 @@ void SharedRuntime::generate_stubs() {
   _resolve_virtual_call_blob           = generate_resolve_blob(CAST_FROM_FN_PTR(address, SharedRuntime::resolve_virtual_call_C),       "resolve_virtual_call");
   _resolve_static_call_blob            = generate_resolve_blob(CAST_FROM_FN_PTR(address, SharedRuntime::resolve_static_call_C),        "resolve_static_call");
   _resolve_static_call_entry           = _resolve_static_call_blob->entry_point();
+
+  AdapterHandlerLibrary::initialize();
 
 #if COMPILER2_OR_JVMCI
   // Vectors are generated only by C2 and JVMCI.
@@ -2614,19 +2617,99 @@ extern "C" void unexpected_adapter_call() {
   ShouldNotCallThis();
 }
 
-void AdapterHandlerLibrary::initialize() {
-  if (_adapters != NULL) return;
-  _adapters = new AdapterHandlerTable();
+class AdapterHandlerFilterEntry : public CHeapObj<mtInternal> {
+private:
+  uint64_t _fp;
+  AdapterHandlerEntry* _entry;
+public:
+  AdapterHandlerFilterEntry(uint64_t fp, AdapterHandlerEntry* entry) :
+    _fp(fp), _entry(entry) {}
 
-  // Create a special handler for abstract methods.  Abstract methods
-  // are never compiled so an i2c entry is somewhat meaningless, but
-  // throw AbstractMethodError just in case.
-  // Pass wrong_method_abstract for the c2i transitions to return
-  // AbstractMethodError for invalid invocations.
-  address wrong_method_abstract = SharedRuntime::get_handle_wrong_method_abstract_stub();
-  _abstract_method_handler = AdapterHandlerLibrary::new_entry(new AdapterFingerPrint(0, NULL),
-                                                              StubRoutines::throw_AbstractMethodError_entry(),
-                                                              wrong_method_abstract, wrong_method_abstract);
+  uint64_t fingerprint() const { return _fp; }
+  AdapterHandlerEntry* entry() const { return _entry; }
+};
+
+class AdapterHandlerFilterConfig : public AllStatic {
+  public:
+    typedef AdapterHandlerFilterEntry* Value;
+
+    static uintx get_hash(Value const& value, bool* is_dead) {
+      uint64_t fp = value->fingerprint();
+      return primitive_hash(fp);
+    }
+    static void* allocate_node(size_t size, Value const& value) {
+      return AllocateHeap(size, mtInternal);
+    }
+    static void free_node(void* memory, Value const& value) {
+      delete value;
+      FreeHeap(memory);
+    }
+};
+
+typedef ConcurrentHashTable<AdapterHandlerFilterConfig, mtInternal> AdapterHandlerFilterTable;
+
+class AdapterHandlerFilterTableLookup : public StackObj {
+private:
+  uint64_t _fp;
+  uintx _hash;
+public:
+  AdapterHandlerFilterTableLookup(uint64_t fp)
+    : _fp(fp), _hash(primitive_hash(fp)) {}
+  uintx get_hash() const {
+    return _hash;
+  }
+  bool equals(AdapterHandlerFilterEntry** value, bool* is_dead) {
+    return primitive_equals(_fp, (*value)->fingerprint());
+  }
+};
+
+class AdapterHandlerGet : public StackObj {
+private:
+  AdapterHandlerEntry* _return;
+public:
+  AdapterHandlerGet(): _return(NULL) {}
+  void operator()(AdapterHandlerFilterEntry** val) {
+    _return = (*val)->entry();
+  }
+  AdapterHandlerEntry* get_entry() {
+    return _return;
+  }
+};
+
+static AdapterHandlerFilterTable* volatile _adapter_filter_table = NULL;
+
+static bool add_filter(AdapterHandlerEntry* entry, uint64_t method_fp) {
+  if (SignatureIterator::fp_is_valid(method_fp)) {
+    uint64_t param_fp = SignatureIterator::fp_ignore_return_type(method_fp);
+    Thread* thread = Thread::current();
+    AdapterHandlerFilterTableLookup lookup(param_fp);
+    AdapterHandlerFilterEntry* filter_entry = new AdapterHandlerFilterEntry(param_fp, entry);
+    // The hash table takes ownership of the AdapterHandlerFilterEntry,
+    // even if it's not inserted.
+    return _adapter_filter_table->insert(thread, lookup, filter_entry);
+  }
+  return false;
+}
+
+void AdapterHandlerLibrary::initialize() {
+  ResourceMark rm;
+  {
+    MutexLocker mu(AdapterHandlerLibrary_lock);
+    assert(_adapters == NULL, "Initializing more than once");
+
+    _adapters = new AdapterHandlerTable();
+    _adapter_filter_table = new AdapterHandlerFilterTable(10, 10);
+
+    // Create a special handler for abstract methods.  Abstract methods
+    // are never compiled so an i2c entry is somewhat meaningless, but
+    // throw AbstractMethodError just in case.
+    // Pass wrong_method_abstract for the c2i transitions to return
+    // AbstractMethodError for invalid invocations.
+    address wrong_method_abstract = SharedRuntime::get_handle_wrong_method_abstract_stub();
+    _abstract_method_handler = AdapterHandlerLibrary::new_entry(new AdapterFingerPrint(0, NULL),
+                                                                StubRoutines::throw_AbstractMethodError_entry(),
+                                                                wrong_method_abstract, wrong_method_abstract);
+  }
 }
 
 AdapterHandlerEntry* AdapterHandlerLibrary::new_entry(AdapterFingerPrint* fingerprint,
@@ -2642,6 +2725,22 @@ AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter(const methodHandle& meth
   // the AdapterHandlerTable (it is not safe for concurrent readers
   // and a single writer: this could be fixed if it becomes a
   // problem).
+  assert(_adapter_filter_table != NULL, "Not initialized");
+
+  if (method->is_abstract()) {
+    return _abstract_method_handler;
+  }
+
+  uint64_t method_fp = method->constMethod()->fingerprint();
+  if (SignatureIterator::fp_is_valid(method_fp)) {
+    uint64_t param_fp = SignatureIterator::fp_ignore_return_type(method_fp);
+    Thread* thread = Thread::current();
+    AdapterHandlerFilterTableLookup lookup(param_fp);
+    AdapterHandlerGet ahg;
+    if (_adapter_filter_table->get(thread, lookup, ahg)) {
+      return ahg.get_entry();
+    }
+  }
 
   ResourceMark rm;
 
@@ -2651,12 +2750,6 @@ AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter(const methodHandle& meth
   AdapterFingerPrint* fingerprint = NULL;
   {
     MutexLocker mu(AdapterHandlerLibrary_lock);
-    // make sure data structure is initialized
-    initialize();
-
-    if (method->is_abstract()) {
-      return _abstract_method_handler;
-    }
 
     // Fill in the signature array, for the calling-convention call.
     int total_args_passed = method->size_of_parameters(); // All args on stack
@@ -2687,6 +2780,7 @@ AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter(const methodHandle& meth
 #endif
 
     if (entry != NULL) {
+      add_filter(entry, method_fp);
       return entry;
     }
 
@@ -2764,6 +2858,7 @@ AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter(const methodHandle& meth
     // Add the entry only if the entry contains all required checks (see sharedRuntime_xxx.cpp)
     // The checks are inserted only if -XX:+VerifyAdapterCalls is specified.
     if (contains_all_checks || !VerifyAdapterCalls) {
+      add_filter(entry, method_fp);
       _adapters->add(entry);
     }
   }
