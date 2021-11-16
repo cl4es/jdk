@@ -386,6 +386,7 @@ bool VectorNode::is_invariant_vector(Node* n) {
   case Op_ReplicateL:
   case Op_ReplicateF:
   case Op_ReplicateD:
+  case Op_Promote:
     return true;
   default:
     return false;
@@ -577,6 +578,21 @@ VectorNode* VectorNode::scalar2vector(Node* s, uint vlen, const Type* opd_t) {
   }
 }
 
+// Scalar promotion
+VectorNode* VectorNode::scalars2vector(Node *n1, Node *n2, BasicType bt) {
+  // BasicType bt = opd_t->array_element_basic_type();
+  // const TypeVect* vt = opd_t->singleton() ? TypeVect::make(opd_t, 4)
+  //                                         : TypeVect::make(bt, 4);
+
+  // assert(bt == T_INT, "not implemented");
+  if (n1->Opcode() == Op_ConV16 && n2->Opcode() == Op_ConV16) {
+    return new ConV32Node(n1, n2, TypeVect::make(bt, 32 / type2aelembytes(bt)));
+  } else {
+    assert(n1->Opcode() == Op_ConL && n2->Opcode() == Op_ConL, "expected");
+    return new ConV16Node(n1, n2, TypeVect::make(bt, 16 / type2aelembytes(bt)));
+  }
+}
+
 VectorNode* VectorNode::shift_count(int opc, Node* cnt, uint vlen, BasicType bt) {
   // Match shift count type with shift vector type.
   const TypeVect* vt = TypeVect::make(bt, vlen);
@@ -694,6 +710,8 @@ PackNode* PackNode::make(Node* s, uint vlen, BasicType bt) {
     fatal("Type '%s' is not supported for vectors", type2name(bt));
     return NULL;
   }
+
+
 }
 
 // Create a binary tree form for Packs. [lo, hi) (half-open) range
@@ -740,6 +758,27 @@ LoadVectorNode* LoadVectorNode::make(int opc, Node* ctl, Node* mem,
                                      ControlDependency control_dependency) {
   const TypeVect* vt = TypeVect::make(bt, vlen);
   return new LoadVectorNode(ctl, mem, adr, atyp, vt, control_dependency);
+}
+
+LoadVectorNode* LoadVectorNode::make_promotion(int opc, Node* ctl, Node* mem,
+                                               Node* adr, const TypePtr* atyp,
+                                               uint vlen, BasicType bt,
+                                               ControlDependency control_dependency) {
+  const TypeVect* vt = TypeVect::make(bt, vlen);
+  switch (opc) {
+  case Op_LoadUB:
+    return new LoadUBVectorNode(ctl, mem, adr, atyp, vt, control_dependency);
+  case Op_LoadB:
+    return new LoadBVectorNode(ctl, mem, adr, atyp, vt, control_dependency);
+  case Op_LoadUS:
+    return new LoadUSVectorNode(ctl, mem, adr, atyp, vt, control_dependency);
+  case Op_LoadS:
+    return new LoadSVectorNode(ctl, mem, adr, atyp, vt, control_dependency);
+  case Op_LoadI:
+    return new LoadSVectorNode(ctl, mem, adr, atyp, vt, control_dependency);
+  default: ShouldNotReachHere();
+  }
+  return NULL;
 }
 
 // Return the vector version of a scalar store node.
@@ -829,7 +868,8 @@ int ReductionNode::opcode(int opc, BasicType bt) {
     case Op_AddI:
       switch (bt) {
         case T_BOOLEAN:
-        case T_CHAR: return 0;
+        case T_CHAR:
+          return 0;
         case T_BYTE:
         case T_SHORT:
         case T_INT:

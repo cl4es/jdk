@@ -161,11 +161,12 @@ class MacroAssembler: public Assembler {
   void incrementq(Register reg, int value = 1);
   void incrementq(Address dst, int value = 1);
 
-  // Support optimal SSE move instructions.
-  void movflt(XMMRegister dst, XMMRegister src) {
-    if (dst-> encoding() == src->encoding()) return;
-    if (UseXmmRegToRegMoveAll) { movaps(dst, src); return; }
-    else                       { movss (dst, src); return; }
+  // Support optimal SSE move instructions. If force_single_move is
+  // true, use movss and ignore the risk of stalling.
+  void movflt(XMMRegister dst, XMMRegister src, bool force_single_move = false) {
+    if (dst-> encoding() == src->encoding())         { return; }
+    if (UseXmmRegToRegMoveAll && !force_single_move) { movaps(dst, src); return; }
+    else                                             { movss (dst, src); return; }
   }
   void movflt(XMMRegister dst, Address src) { movss(dst, src); }
   void movflt(XMMRegister dst, AddressLiteral src);
@@ -174,10 +175,10 @@ class MacroAssembler: public Assembler {
   // Move with zero extension
   void movfltz(XMMRegister dst, XMMRegister src) { movss(dst, src); }
 
-  void movdbl(XMMRegister dst, XMMRegister src) {
-    if (dst-> encoding() == src->encoding()) return;
-    if (UseXmmRegToRegMoveAll) { movapd(dst, src); return; }
-    else                       { movsd (dst, src); return; }
+  void movdbl(XMMRegister dst, XMMRegister src, bool force_single_move = false) {
+    if (dst-> encoding() == src->encoding())         { return; }
+    if (UseXmmRegToRegMoveAll && !force_single_move) { movapd(dst, src); return; }
+    else                                             { movsd (dst, src); return; }
   }
 
   void movdbl(XMMRegister dst, AddressLiteral src);

@@ -241,6 +241,56 @@ void PhaseIdealLoop::do_unswitching(IdealLoopTree *loop, Node_List &old_new) {
 //-------------------------create_slow_version_of_loop------------------------
 // Create a slow version of the loop by cloning the loop
 // and inserting an if to select fast-slow versions.
+// Return control projection of the entry to the fast version.
+ProjNode* PhaseIdealLoop::create_slow_version_of_loop(IdealLoopTree *loop,
+                                                      Node_List &old_new,
+                                                      int opcode,
+                                                      CloneLoopMode mode) {
+  LoopNode* head  = loop->_head->as_Loop();
+  bool counted_loop = head->is_CountedLoop();
+  Node*     entry = head->skip_strip_mined()->in(LoopNode::EntryControl);
+  _igvn.rehash_node_delayed(entry);
+  IdealLoopTree* outer_loop = loop->_parent;
+
+  head->verify_strip_mined(1);
+
+  Node *cont      = _igvn.intcon(1);
+  set_ctrl(cont, C->root());
+  Node* opq       = new Opaque1Node(C, cont);
+  register_node(opq, outer_loop, entry, dom_depth(entry));
+  Node *bol       = new Conv2BNode(opq);
+  register_node(bol, outer_loop, entry, dom_depth(entry));
+  IfNode* iff = (opcode == Op_RangeCheck) ? new RangeCheckNode(entry, bol, PROB_MAX, COUNT_UNKNOWN) :
+    new IfNode(entry, bol, PROB_MAX, COUNT_UNKNOWN);
+  register_node(iff, outer_loop, entry, dom_depth(entry));
+  ProjNode* iffast = new IfTrueNode(iff);
+  register_node(iffast, outer_loop, iff, dom_depth(iff));
+  ProjNode* ifslow = new IfFalseNode(iff);
+  register_node(ifslow, outer_loop, iff, dom_depth(iff));
+  // Clone the loop body.  The clone becomes the slow loop.  The
+  // original pre-header will (illegally) have 3 control users
+  // (old & new loops & new if).
+  clone_loop(loop, old_new, dom_depth(head->skip_strip_mined()), mode, iff);
+  assert(old_new[head->_idx]->is_Loop(), "" );
+  // Fast (true) and Slow (false) control
+  ProjNode* iffast_pred = iffast;
+  ProjNode* ifslow_pred = ifslow;
+  clone_predicates_to_unswitched_loop(loop, old_new, iffast_pred, ifslow_pred);
+  Node* l = head->skip_strip_mined();
+  _igvn.replace_input_of(l, LoopNode::EntryControl, iffast_pred);
+  set_idom(l, iffast_pred, dom_depth(l));
+  LoopNode* slow_l = old_new[head->_idx]->as_Loop()->skip_strip_mined();
+  _igvn.replace_input_of(slow_l, LoopNode::EntryControl, ifslow_pred);
+  set_idom(slow_l, ifslow_pred, dom_depth(l));
+
+  recompute_dom_depth();
+
+  return iffast;
+}
+
+//-------------------------create_slow_version_of_loop------------------------
+// Create a slow version of the loop by cloning the loop
+// and inserting an if to select fast-slow versions.
 // Return the inserted if.
 IfNode* PhaseIdealLoop::create_slow_version_of_loop(IdealLoopTree *loop,
                                                       Node_List &old_new,

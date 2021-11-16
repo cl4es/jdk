@@ -767,6 +767,15 @@
                                                                             \
   product(bool, VerifyReceiverTypes, trueInDebug, DIAGNOSTIC,               \
           "Verify receiver types at runtime")                               \
+                                                                            \
+  product(bool, IdiomVectorize, false,                                      \
+          "Use polynomial reduction support in superword")                  \
+                                                                            \
+  product(uintx, IdiomVectorWidth, 32,                                      \
+          "Target vector with for IdiomVectorize")                          \
+                                                                            \
+  product(bool, IdiomMultiversion, true,                                    \
+          "Emit multiversioned loops for idiom vectorized loops")
 
 // end of C2_FLAGS
 

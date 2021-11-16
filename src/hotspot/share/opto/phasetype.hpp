@@ -70,7 +70,11 @@ enum CompilerPhaseType {
   PHASE_FAILURE,
   PHASE_DEBUG,
 
-  PHASE_NUM_TYPES
+  PHASE_NUM_TYPES,
+
+  PHASE_BEFORE_IDIOM_VECTORIZATION,
+  PHASE_FAILED_IDIOM_VECTORIZATION,
+  PHASE_AFTER_IDIOM_VECTORIZATION
 };
 
 class CompilerPhaseTypeHelper {
@@ -120,6 +124,9 @@ class CompilerPhaseTypeHelper {
       case PHASE_END:                        return "End";
       case PHASE_FAILURE:                    return "Failure";
       case PHASE_DEBUG:                      return "Debug";
+      case PHASE_BEFORE_IDIOM_VECTORIZATION: return "Before idiom vectorization";
+      case PHASE_FAILED_IDIOM_VECTORIZATION: return "Failed idiom vectorization";
+      case PHASE_AFTER_IDIOM_VECTORIZATION:  return "After idiom vectorization";
       default:
         ShouldNotReachHere();
         return NULL;

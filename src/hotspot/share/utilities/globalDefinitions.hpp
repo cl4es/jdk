@@ -835,6 +835,16 @@ class JavaValue {
     _value.d = value;
   }
 
+  JavaValue(jint value, BasicType t=T_INT) {
+    _type    = t;
+    _value.i = value;
+  }
+
+  JavaValue(jlong value) {
+    _type    = T_LONG;
+    _value.l = value;
+  }
+
  jfloat get_jfloat() const { return _value.f; }
  jdouble get_jdouble() const { return _value.d; }
  jint get_jint() const { return _value.i; }

@@ -38,6 +38,7 @@
 #include "opto/convertnode.hpp"
 #include "opto/divnode.hpp"
 #include "opto/idealGraphPrinter.hpp"
+#include "opto/idiomVectorize.hpp"
 #include "opto/loopnode.hpp"
 #include "opto/movenode.hpp"
 #include "opto/mulnode.hpp"
@@ -47,6 +48,7 @@
 #include "opto/superword.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "utilities/powerOfTwo.hpp"
+
 
 //=============================================================================
 //--------------------------is_cloop_ind_var-----------------------------------
@@ -3639,7 +3641,6 @@ uint IdealLoopTree::est_loop_flow_merge_sz() const {
   }
   return 0;
 }
-
 #ifndef PRODUCT
 //------------------------------dump_head--------------------------------------
 // Dump 1 liner for loop header info
@@ -3692,6 +3693,7 @@ void IdealLoopTree::dump_head() const {
     if (cl->is_vectorized_loop()) tty->print(" vector");
     if (cl->range_checks_present()) tty->print(" rc ");
     if (cl->is_multiversioned()) tty->print(" multi ");
+    if (cl->has_passed_idiom_analysis()) tty->print(" idiomvec ");
   }
   if (_has_call) tty->print(" has_call");
   if (_has_sfpt) tty->print(" has_sfpt");
@@ -4109,6 +4111,8 @@ void PhaseIdealLoop::build_and_optimize(LoopOptsMode mode) {
     _ltree_root->counted_loop( this );
   }
 
+  // C->print_method(PHASE_FAILED_IDIOM_VECTORIZATION);
+
   // Find latest loop placement.  Find ideal loop placement.
   visited.clear();
   init_dom_lca_tags();
@@ -4238,6 +4242,17 @@ void PhaseIdealLoop::build_and_optimize(LoopOptsMode mode) {
   if (OptimizeFill && UseLoopPredicate && C->has_loops() && !C->major_progress()) {
     if (do_intrinsify_fill()) {
       C->set_major_progress();
+    }
+  }
+
+  if (C->has_loops() && mode == LoopOptsDefault) {
+    for (LoopTreeIterator iter(_ltree_root); !iter.done(); iter.next()) {
+      IdealLoopTree* lpt = iter.current();
+      if (idiom_analyze(C, this, &_igvn, lpt)) {
+        // set_created_loop_node();
+        C->set_major_progress();
+        // poison_rce_post_loop(lpt);
+      }
     }
   }
 

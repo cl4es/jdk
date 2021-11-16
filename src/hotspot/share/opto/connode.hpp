@@ -60,7 +60,6 @@ public:
   static ConINode* make(int con) {
     return new ConINode( TypeInt::make(con) );
   }
-
 };
 
 //------------------------------ConPNode---------------------------------------

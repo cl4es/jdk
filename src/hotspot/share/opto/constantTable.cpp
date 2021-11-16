@@ -96,8 +96,11 @@ void ConstantTable::calculate_offsets_and_size() {
     Constant* con = _constants.adr_at(i);
 
     // Align offset for type.
-    int typesize = type_to_size_in_bytes(con->type());
-    offset = align_up(offset, typesize);
+    int typesize =  type_to_size_in_bytes(con->type());
+    int align = con->has_required_align()
+      ? con->required_align()
+      : typesize;
+    offset = align_up(offset, align);
     con->set_offset(offset);   // set constant's offset
 
     if (con->type() == T_VOID) {
@@ -118,12 +121,13 @@ bool ConstantTable::emit(CodeBuffer& cb) const {
   MacroAssembler _masm(&cb);
   for (int i = 0; i < _constants.length(); i++) {
     Constant con = _constants.at(i);
+    int align = con.required_align();
     address constant_addr = NULL;
     switch (con.type()) {
-    case T_INT:    constant_addr = _masm.int_constant(   con.get_jint()   ); break;
-    case T_LONG:   constant_addr = _masm.long_constant(  con.get_jlong()  ); break;
-    case T_FLOAT:  constant_addr = _masm.float_constant( con.get_jfloat() ); break;
-    case T_DOUBLE: constant_addr = _masm.double_constant(con.get_jdouble()); break;
+    case T_INT:    constant_addr = _masm.int_constant(   con.get_jint(),    align); break;
+    case T_LONG:   constant_addr = _masm.long_constant(  con.get_jlong(),   align); break;
+    case T_FLOAT:  constant_addr = _masm.float_constant( con.get_jfloat(),  align); break;
+    case T_DOUBLE: constant_addr = _masm.double_constant(con.get_jdouble(), align); break;
     case T_OBJECT: {
       jobject obj = con.get_jobject();
       int oop_index = _masm.oop_recorder()->find_index(obj);
@@ -205,9 +209,9 @@ void ConstantTable::add(Constant& con) {
   (void) _constants.append(con);
 }
 
-ConstantTable::Constant ConstantTable::add(MachConstantNode* n, BasicType type, jvalue value) {
+ConstantTable::Constant ConstantTable::add(MachConstantNode* n, BasicType type, jvalue value, int required_align, bool can_be_reused) {
   Block* b = Compile::current()->cfg()->get_block_for_node(n);
-  Constant con(type, value, b->_freq);
+  Constant con(type, value, b->_freq, can_be_reused, required_align);
   add(con);
   return con;
 }

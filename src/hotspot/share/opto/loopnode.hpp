@@ -78,7 +78,9 @@ protected:
          SubwordLoop         = 1<<16,
          ProfileTripFailed   = 1<<17,
          TransformedLongInnerLoop = 1<<18,
-         TransformedLongOuterLoop = 1<<19};
+         TransformedLongOuterLoop = 1<<19,
+         WasIdiomAnalyzed    = 1<<20,
+         PassedIdiomAnalysis = 1<<21};
   char _unswitch_count;
   enum { _unswitch_max=3 };
   char _postloop_flags;
@@ -121,6 +123,8 @@ public:
   void mark_subword_loop() { _loop_flags |= SubwordLoop; }
   void mark_transformed_long_inner_loop() { _loop_flags |= TransformedLongInnerLoop; }
   void mark_transformed_long_outer_loop() { _loop_flags |= TransformedLongOuterLoop; }
+  void mark_was_idiom_analyzed() { _loop_flags |= WasIdiomAnalyzed; }
+  void mark_passed_idiom_analysis() { _loop_flags |= PassedIdiomAnalysis; }
 
   int unswitch_max() { return _unswitch_max; }
   int unswitch_count() { return _unswitch_count; }
@@ -297,6 +301,8 @@ public:
   bool is_main_no_pre_loop() const { return _loop_flags & MainHasNoPreLoop; }
   bool has_atomic_post_loop  () const { return (_loop_flags & HasAtomicPostLoop) == HasAtomicPostLoop; }
   void set_main_no_pre_loop() { _loop_flags |= MainHasNoPreLoop; }
+  bool was_idiom_analyzed() const { return (_loop_flags&WasIdiomAnalyzed) == WasIdiomAnalyzed; }
+  bool has_passed_idiom_analysis() const { return (_loop_flags&PassedIdiomAnalysis) == PassedIdiomAnalysis; }
 
   int main_idx() const { return _main_idx; }
 
@@ -1368,11 +1374,19 @@ public:
 
   // Create a slow version of the loop by cloning the loop
   // and inserting an if to select fast-slow versions.
+  // Return control projection of the entry to the fast version.
+  ProjNode* create_slow_version_of_loop(IdealLoopTree *loop,
+                                        Node_List &old_new,
+                                        int opcode,
+                                        CloneLoopMode mode);
+
+  // Create a slow version of the loop by cloning the loop
+  // and inserting an if to select fast-slow versions.
   // Return the inserted if.
   IfNode* create_slow_version_of_loop(IdealLoopTree *loop,
-                                        Node_List &old_new,
-                                        IfNode* unswitch_iff,
-                                        CloneLoopMode mode);
+                                      Node_List &old_new,
+                                      IfNode* unswitch_iff,
+                                      CloneLoopMode mode);
 
   // Clone a loop and return the clone head (clone_loop_head).
   // Added nodes include int(1), int(0) - disconnected, If, IfTrue, IfFalse,

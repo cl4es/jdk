@@ -1625,9 +1625,10 @@ void C2_MacroAssembler::mulreduceB(int opcode, int vlen,
 }
 
 void C2_MacroAssembler::reduceS(int opcode, int vlen,
-                             Register dst, Register src1, XMMRegister src2,
-                             XMMRegister vtmp1, XMMRegister vtmp2) {
+                                Register dst, Register src1, XMMRegister src2,
+                                XMMRegister vtmp1, XMMRegister vtmp2) {
   switch (vlen) {
+    case  2: reduce2S (opcode, dst, src1, src2, vtmp1, vtmp2); break;
     case  4: reduce4S (opcode, dst, src1, src2, vtmp1, vtmp2); break;
     case  8: reduce8S (opcode, dst, src1, src2, vtmp1, vtmp2); break;
     case 16: reduce16S(opcode, dst, src1, src2, vtmp1, vtmp2); break;
@@ -1818,6 +1819,21 @@ void C2_MacroAssembler::mulreduce64B(int opcode, Register dst, Register src1, XM
   mulreduce32B(opcode, dst, src1, src2, vtmp1, vtmp2);
   vextracti64x4_high(vtmp2, src2);
   mulreduce32B(opcode, dst, dst, vtmp2, vtmp1, vtmp2);
+}
+
+void C2_MacroAssembler::reduce2S(int opcode, Register dst, Register src1, XMMRegister src2, XMMRegister vtmp1, XMMRegister vtmp2) {
+  if (opcode == Op_AddReductionVI) {
+    if (vtmp1 != src2) {
+      movdqu(vtmp1, src2);
+    }
+    phaddd(vtmp1, vtmp1);
+  } else {
+    pshufd(vtmp1, src2, 0x1);
+    reduce_operation_128(T_SHORT, opcode, vtmp1, src2);
+  }
+  movdl(vtmp2, src1);
+  reduce_operation_128(T_SHORT, opcode, vtmp1, vtmp2);
+  movdl(dst, vtmp1);
 }
 
 void C2_MacroAssembler::reduce4S(int opcode, Register dst, Register src1, XMMRegister src2, XMMRegister vtmp1, XMMRegister vtmp2) {

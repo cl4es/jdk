@@ -45,14 +45,17 @@ public:
     int       _offset;         // offset of this constant (in bytes) relative to the constant table base.
     float     _freq;
     bool      _can_be_reused;  // true (default) if the value can be shared with other users.
+    int       _required_align; // required alignment.
 
   public:
     Constant() : _type(T_ILLEGAL), _offset(-1), _freq(0.0f), _can_be_reused(true) { _v._value.l = 0; }
-    Constant(BasicType type, jvalue value, float freq = 0.0f, bool can_be_reused = true) :
+    Constant(BasicType type, jvalue value, float freq = 0.0f, bool can_be_reused = true,
+             int required_align=-1) :
       _type(type),
       _offset(-1),
       _freq(freq),
-      _can_be_reused(can_be_reused)
+      _can_be_reused(can_be_reused),
+      _required_align(required_align)
     {
       assert(type != T_METADATA, "wrong constructor");
       _v._value = value;
@@ -61,7 +64,8 @@ public:
       _type(T_METADATA),
       _offset(-1),
       _freq(0.0f),
-      _can_be_reused(can_be_reused)
+      _can_be_reused(can_be_reused),
+      _required_align(-1)
     {
       _v._metadata = metadata;
     }
@@ -80,6 +84,10 @@ public:
 
     int         offset()  const    { return _offset; }
     void    set_offset(int offset) {        _offset = offset; }
+
+    int      required_align() const    { return _required_align; }
+    void set_required_align(int align) {        _required_align = align; }
+    bool has_required_align() const   {  return _required_align != -1; }
 
     float       freq()    const    { return _freq;         }
     void    inc_freq(float freq)   {        _freq += freq; }
@@ -122,7 +130,7 @@ public:
   int  find_offset(Constant& con) const;
 
   void     add(Constant& con);
-  Constant add(MachConstantNode* n, BasicType type, jvalue value);
+  Constant add(MachConstantNode* n, BasicType type, jvalue value, int required_align=-1, bool can_be_reused=true);
   Constant add(Metadata* metadata);
   Constant add(MachConstantNode* n, MachOper* oper);
   Constant add(MachConstantNode* n, jint i) {
@@ -132,6 +140,27 @@ public:
   Constant add(MachConstantNode* n, jlong j) {
     jvalue value; value.j = j;
     return add(n, T_LONG, value);
+  }
+  Constant add(MachConstantNode* n, jlong a, jlong b) {
+    // Double quadword with 16 byte alignment.
+    jvalue avalue; avalue.j = a;
+    jvalue bvalue; bvalue.j = b;
+    Constant ca = add(n, T_LONG, avalue, 16, false);
+    Constant cb = add(n, T_LONG, bvalue, -1, false);
+    return ca;
+  }
+  Constant add(MachConstantNode *n, jlong a, jlong b, jlong c, jlong d) {
+    // Quad quadword with 32 byte alignment.
+    // Disallow reuse to ensure
+    jvalue avalue; avalue.j = a;
+    jvalue bvalue; bvalue.j = b;
+    jvalue cvalue; cvalue.j = c;
+    jvalue dvalue; dvalue.j = d;
+    Constant ca = add(n, T_LONG, avalue, 32, false);
+    Constant cb = add(n, T_LONG, bvalue, -1, false);
+    Constant cc = add(n, T_LONG, cvalue, -1, false);
+    Constant cd = add(n, T_LONG, dvalue, -1, false);
+    return ca;
   }
   Constant add(MachConstantNode* n, jfloat f) {
     jvalue value; value.f = f;

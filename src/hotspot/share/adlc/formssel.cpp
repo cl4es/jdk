@@ -3512,9 +3512,11 @@ int MatchNode::needs_ideal_memory_edge(FormDict &globals) const {
   static const char *needs_ideal_memory_list[] = {
     "StoreI","StoreL","StoreP","StoreN","StoreNKlass","StoreD","StoreF" ,
     "StoreB","StoreC","Store" ,"StoreFP",
-    "LoadI", "LoadL", "LoadP" ,"LoadN", "LoadD" ,"LoadF"  ,
-    "LoadB" , "LoadUB", "LoadUS" ,"LoadS" ,"Load" ,
-    "StoreVector", "LoadVector", "LoadVectorGather", "StoreVectorScatter", "LoadVectorMasked", "StoreVectorMasked",
+    "LoadI", "LoadL", "LoadP" ,"LoadN", "LoadD", "LoadF",
+    "LoadB", "LoadUB", "LoadUS", "LoadS", "Load",
+    "StoreVector", "LoadVector",
+    "LoadUBVector", "LoadBVector", "LoadUSVector", "LoadSVector", "LoadIVector",
+    "LoadVectorGather", "StoreVectorScatter", "LoadVectorMasked", "StoreVectorMasked",
     "LoadRange", "LoadKlass", "LoadNKlass", "LoadL_unaligned", "LoadD_unaligned",
     "LoadPLocked",
     "StorePConditional", "StoreIConditional", "StoreLConditional",
@@ -4075,6 +4077,7 @@ int MatchRule::is_expensive() const {
         strcmp(opType,"ReplicateL")==0 ||
         strcmp(opType,"ReplicateF")==0 ||
         strcmp(opType,"ReplicateD")==0 ||
+        strcmp(opType,"PromoteNode")==0 ||
         strcmp(opType,"AddReductionVI")==0 ||
         strcmp(opType,"AddReductionVL")==0 ||
         strcmp(opType,"AddReductionVF")==0 ||
@@ -4200,6 +4203,7 @@ bool MatchRule::is_vector() const {
     "URShiftVB","URShiftVS","URShiftVI","URShiftVL",
     "ReplicateB","ReplicateS","ReplicateI","ReplicateL","ReplicateF","ReplicateD",
     "RoundDoubleModeV","RotateLeftV" , "RotateRightV", "LoadVector","StoreVector",
+    "LoadUBVector", "LoadBVector", "LoadUSVector", "LoadSVector", "LoadIVector",
     "LoadVectorGather", "StoreVectorScatter",
     "VectorTest", "VectorLoadMask", "VectorStoreMask", "VectorBlend", "VectorInsert",
     "VectorRearrange","VectorLoadShuffle", "VectorLoadConst",
@@ -4207,6 +4211,7 @@ bool MatchRule::is_vector() const {
     "VectorCastL2X", "VectorCastF2X", "VectorCastD2X",
     "VectorMaskWrapper", "VectorMaskCmp", "VectorReinterpret","LoadVectorMasked","StoreVectorMasked",
     "FmaVD", "FmaVF","PopCountVI",
+    "Promote", "ConV16", "ConV32", "ElemLShiftV",
     // Next are not supported currently.
     "PackB","PackS","PackI","PackL","PackF","PackD","Pack2L","Pack2D",
     "ExtractB","ExtractUB","ExtractC","ExtractS","ExtractI","ExtractL","ExtractF","ExtractD",

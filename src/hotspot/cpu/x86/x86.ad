@@ -2182,6 +2182,11 @@ static inline Assembler::ComparisonPredicateFP booltest_pred_to_comparison_pred_
   }
 }
 
+static inline BasicType vector_elem_basic_type(const MachNode* n) {
+  const TypeVect* vt = n->bottom_type()->is_vect();
+  return vt->element_basic_type();
+}
+
 // Helper methods for MachSpillCopyNode::implementation().
 static void vec_mov_helper(CodeBuffer *cbuf, int src_lo, int dst_lo,
                           int src_hi, int dst_hi, uint ireg, outputStream* st) {
@@ -3559,6 +3564,147 @@ instruct loadV(vec dst, memory mem) %{
   ins_pipe( pipe_slow );
 %}
 
+instruct loadUBV(vec dst, memory mem) %{
+  match(Set dst (LoadUBVector mem));
+  format %{ "load_ub_vector $dst, $mem" %}
+  ins_encode %{
+    BasicType elem_bt = vector_elem_basic_type(this);
+    int vlen = Matcher::vector_length_in_bytes(this);
+    if (elem_bt == T_SHORT) {
+      switch (vlen) {
+        case 8: __ vpmovzxbw($dst$$XMMRegister, $mem$$Address, Assembler::AVX_128bit); break;
+        case 16: __ vpmovzxbw($dst$$XMMRegister, $mem$$Address, Assembler::AVX_256bit); break;
+        case 32: assert(false, "not implemented"); break;
+        default: ShouldNotReachHere();
+      }
+    } else if (elem_bt == T_INT) {
+      switch (vlen) {
+        case 4: __ vpmovzxbd($dst$$XMMRegister, $mem$$Address, Assembler::AVX_128bit); break;
+        case 8: __ vpmovzxbd($dst$$XMMRegister, $mem$$Address, Assembler::AVX_256bit); break;
+        case 16: assert(false, "not implemented"); break;
+        default: ShouldNotReachHere();
+      }
+    } else if (elem_bt == T_LONG) {
+      switch (vlen) {
+        case 2: __ pmovzxbq($dst$$XMMRegister, $mem$$Address); break;
+        case 4: assert(false, "not implemented"); break;
+        case 8: assert(false, "not implemented"); break;
+        default: ShouldNotReachHere();
+      }
+    } else {
+      ShouldNotReachHere();
+    }
+  %}
+  ins_pipe(pipe_slow);
+%}
+
+
+instruct loadBV(vec dst, memory mem) %{
+  match(Set dst (LoadBVector mem));
+  format %{ "load_b_vector $dst, $mem" %}
+  ins_encode %{
+    BasicType elem_bt = vector_elem_basic_type(this);
+    int vlen = Matcher::vector_length_in_bytes(this);
+    if (elem_bt == T_SHORT) {
+      switch (vlen) {
+        case 8: __ pmovsxbd($dst$$XMMRegister, $mem$$Address); break;
+        case 16: assert(false, "not implemented"); break;
+        case 32: assert(false, "not implemented"); break;
+        default: ShouldNotReachHere();
+      }
+    } else if (elem_bt == T_INT) {
+      switch (vlen) {
+        case 4: __ pmovsxbd($dst$$XMMRegister, $mem$$Address); break;
+        case 8: __ vpmovsxbd($dst$$XMMRegister, $mem$$Address, Assembler::AVX_256bit); break;
+        case 16: assert(false, "not implemented"); break;
+        default: ShouldNotReachHere();
+      }
+    } else if (elem_bt == T_LONG) {
+      switch (vlen) {
+        case 2: __ pmovsxbq($dst$$XMMRegister, $mem$$Address); break;
+        case 4: assert(false, "not implemented"); break;
+        case 8: assert(false, "not implemented"); break;
+        default: ShouldNotReachHere();
+      }
+    } else {
+      ShouldNotReachHere();
+    }
+  %}
+  ins_pipe(pipe_slow);
+%}
+
+instruct loadUSV(vec dst, memory mem) %{
+  match(Set dst (LoadUSVector mem));
+  format %{ "load_us_vector $dst, $mem" %}
+  ins_encode %{
+    BasicType elem_bt = vector_elem_basic_type(this);
+    int vlen = Matcher::vector_length_in_bytes(this);
+    if (elem_bt == T_INT) {
+      switch (vlen) {
+        case 4: __ pmovzxwd($dst$$XMMRegister, $mem$$Address); break;
+        case 8: __ vpmovzxwd($dst$$XMMRegister, $mem$$Address, Assembler::AVX_256bit); break;
+        case 16: assert(false, "not implemented"); break;
+        default: ShouldNotReachHere();
+      }
+    } else if (elem_bt == T_LONG) {
+      switch(vlen) {
+        case 2: __ pmovzxwq($dst$$XMMRegister, $mem$$Address); break;
+        case 4: assert(false, "not implemented"); break;
+        case 8: assert(false, "not implemented"); break;
+        default: ShouldNotReachHere();
+      }
+    } else {
+      ShouldNotReachHere();
+    }
+  %}
+  ins_pipe(pipe_slow);
+%}
+
+instruct loadSV(vec dst, memory mem) %{
+  match(Set dst (LoadSVector mem));
+  format %{ "load_s_vector $dst, $mem" %}
+  ins_encode %{
+    BasicType elem_bt = vector_elem_basic_type(this);
+    int vlen = Matcher::vector_length_in_bytes(this);
+    if (elem_bt == T_INT) {
+      switch (vlen) {
+        case 4: __ pmovsxwd($dst$$XMMRegister, $mem$$Address); break;
+        case 8: __ vpmovsxwd($dst$$XMMRegister, $mem$$Address, Assembler::AVX_256bit); break;
+        case 16: assert(false, "not implemented"); break;
+        default: ShouldNotReachHere();
+      }
+    } else if (elem_bt == T_LONG) {
+      switch(vlen) {
+        case 2: __ pmovsxwq($dst$$XMMRegister, $mem$$Address); break;
+        case 4: assert(false, "not implemented"); break;
+        case 8: assert(false, "not implemented"); break;
+        default: ShouldNotReachHere();
+      }
+    } else {
+      ShouldNotReachHere();
+    }
+  %}
+  ins_pipe(pipe_slow);
+%}
+
+instruct loadIV(vec dst, memory mem) %{
+  match(Set dst (LoadIVector mem));
+  format %{ "load_i_vector $dst, $mem" %}
+  ins_encode %{
+    BasicType elem_bt = vector_elem_basic_type(this);
+    int vlen = Matcher::vector_length_in_bytes(this);
+    assert(elem_bt == T_LONG, "sanity");
+    switch (vlen) {
+      case 2: __ pmovsxdq($dst$$XMMRegister, $mem$$Address); break;
+      case 4: __ vpmovsxdq($dst$$XMMRegister, $mem$$Address, Assembler::AVX_256bit); break;
+      case 8: assert(false, "not implemented"); break;
+      default: ShouldNotReachHere();
+    }
+  %}
+  ins_pipe(pipe_slow);
+%}
+
+
 // Store vectors generic operand pattern.
 instruct storeV(memory mem, vec src) %{
   match(Set mem (StoreVector mem src));
@@ -3645,6 +3791,67 @@ instruct scatter(memory mem, vec src, vec idx, rRegP tmp, kReg ktmp) %{
     __ kmovwl($ktmp$$KRegister, ExternalAddress(vector_all_bits_set()), $tmp$$Register);
     __ lea($tmp$$Register, $mem$$Address);
     __ evscatter(elem_bt, $tmp$$Register, $idx$$XMMRegister, $ktmp$$KRegister, $src$$XMMRegister, vlen_enc);
+  %}
+  ins_pipe( pipe_slow );
+%}
+
+// ====================VECTOR CONSTANTS================================
+
+instruct ConV32_imm(vec dst, immL a, immL b, immL c, immL d) %{
+  match(Set dst (ConV32 (ConV16 a b) (ConV16 c d)));
+  format %{ "ConV32 $dst" %}
+  ins_encode %{
+    uint vlen = Matcher::vector_length_in_bytes(this);
+    InternalAddress lo_addr = $constantaddress($a$$constant, $b$$constant, $c$$constant, $d$$constant);
+    // TODO: Make aligned:
+    __ vmovdqu($dst$$XMMRegister, lo_addr);
+  %}
+  ins_pipe( pipe_slow );
+%}
+
+instruct ConV16_imm(vec dst, immL lo, immL hi) %{
+  match(Set dst (ConV16 lo hi));
+  format %{ "movdqa $dst ! load aligned vector constant" %}
+  ins_encode %{
+    uint vlen = Matcher::vector_length_in_bytes(this);
+    InternalAddress lo_addr = $constantaddress($hi$$constant, $lo$$constant);
+    // Aligned load. Asserts that lo_addr is aligned.
+    __ movdqa($dst$$XMMRegister, lo_addr);
+  %}
+  ins_pipe( pipe_slow );
+%}
+
+instruct ElemLShiftV_imm(vec dst, vec src, immU8 dist) %{
+  match(Set dst (ElemLShiftV src dist));
+  format %{ "pslldq $dst, $src, $dist" %}
+  ins_encode %{
+    int vlen_enc = vector_length_encoding(this);
+    switch (Matcher::vector_length_in_bytes(this, $src)) {
+    case 16:
+      // __ movdqa($dst$$XMMRegister, $src$$XMMRegister);
+      __ vpslldq($dst$$XMMRegister, $src$$XMMRegister, $dist$$constant, vlen_enc);
+      break;
+    case 32:
+      // Added complexity since we shift across the 128-bit interlane
+      // boundary.
+      if ($dist$$constant < 16) {
+        __ vperm2i128($dst$$XMMRegister, $src$$XMMRegister, $src$$XMMRegister,
+                      0x8);
+        __ vpalignr($dst$$XMMRegister, $src$$XMMRegister, $dst$$XMMRegister,
+                    16 - $dist$$constant, vlen_enc);
+      } else if ($dist$$constant == 16) {
+        __ vperm2i128($dst$$XMMRegister, $src$$XMMRegister, $src$$XMMRegister,
+                      0x8);
+      } else if ($dist$$constant > 16) {
+        assert(false, "not implemented");
+      }
+
+      // __ vpsllvd($dst$$XMMRegister, $src$$XMMRegister, $dist$$constant,
+      //          Assembler::AVX_256bit);
+      break;
+    default:
+      ShouldNotReachHere();
+    }
   %}
   ins_pipe( pipe_slow );
 %}
@@ -3903,6 +4110,37 @@ instruct ReplI_M1(vec dst, immI_M1 con) %{
   ins_encode %{
     int vector_len = vector_length_encoding(this);
     __ vallones($dst$$XMMRegister, vector_len);
+  %}
+  ins_pipe( pipe_slow );
+%}
+
+
+instruct ReplI_element(vec dst, vec src, immI pos) %{
+  predicate(UseAVX > 0);
+  match(Set dst (ReplicateI (ExtractI src pos)));
+  format %{ "replicateI $dst, $src, $pos ! replicate element at pos" %}
+  ins_encode %{
+    int vlen_enc = vector_length_encoding(this);
+    int p = $pos$$constant;
+    int control = 0xFF;//p | p << 2 | p << 4 | p << 6;
+    switch (Matcher::vector_length_in_bytes(this, $src)) {
+    case 16:
+      __ pshufd($dst$$XMMRegister, $src$$XMMRegister, control);
+      break;
+    case 32:
+      // Pick the last element from each 128-bit lane, and replicate
+      // it over it's corresponding lane.
+      __ vpshufd($dst$$XMMRegister, $src$$XMMRegister, control, vlen_enc);
+
+      // Replicate the upper 128-bit lane to fill the entire register.
+      // WARNING: High instruction latency. A better solution may
+      // exist.
+      __ vperm2i128($dst$$XMMRegister, $dst$$XMMRegister, $dst$$XMMRegister,
+                    0x33);
+      break;
+    default:
+      ShouldNotReachHere();
+    }
   %}
   ins_pipe( pipe_slow );
 %}
@@ -4383,6 +4621,73 @@ instruct insert8D(vec dst, vec src, regD val, immI idx, rRegL tmp, legVec vtmp) 
 %}
 #endif
 
+// ====================PromoteI=======================================
+
+instruct PromI_reg(vec dst, vec src, rRegI scalar) %{
+  match(Set dst (Promote src scalar));
+  format %{ "promoteI $dst,$src,$scalar" %}
+  ins_encode %{
+    switch (Matcher::vector_length_in_bytes(this, $src)) {
+      case 16: __ movdqu   ($dst$$XMMRegister, $src$$XMMRegister); break;
+      case 32: __ vmovdqu  ($dst$$XMMRegister, $src$$XMMRegister); break;
+      case 64: __ evmovdqul($dst$$XMMRegister, $src$$XMMRegister, Assembler::AVX_512bit); break;
+      default: ShouldNotReachHere();
+    }
+    __ movdl($dst$$XMMRegister, $scalar$$Register);
+  %}
+  ins_pipe( pipe_slow );
+%}
+
+instruct PromL_reg(vec dst, vec src, rRegL scalar) %{
+  match(Set dst (Promote src scalar));
+  format %{ "promoteL $dst,$src" %}
+  ins_encode %{
+    switch (Matcher::vector_length_in_bytes(this, $src)) {
+      case 16: __ movdqu   ($dst$$XMMRegister, $src$$XMMRegister); break;
+      case 32: __ vmovdqu  ($dst$$XMMRegister, $src$$XMMRegister); break;
+      case 64: __ evmovdqul($dst$$XMMRegister, $src$$XMMRegister, Assembler::AVX_512bit); break;
+      default: ShouldNotReachHere();
+    }
+    assert(false, "TODO: Verify that the following instruction does loads a long scalar!");
+    __ movdl($dst$$XMMRegister, $scalar$$Register);
+  %}
+  ins_pipe( pipe_slow );
+%}
+
+instruct PromF_reg(vec dst, vec src, vlRegF scalar) %{
+  match(Set dst (Promote src scalar));
+  format %{ "promoteF $dst,$src" %}
+  ins_encode %{
+    switch (Matcher::vector_length_in_bytes(this, $src)) {
+      case 16: __ movdqu   ($dst$$XMMRegister, $src$$XMMRegister); break;
+      case 32: __ vmovdqu  ($dst$$XMMRegister, $src$$XMMRegister); break;
+      case 64: __ evmovdqul($dst$$XMMRegister, $src$$XMMRegister, Assembler::AVX_512bit); break;
+      default: ShouldNotReachHere();
+    }
+    // Force single-single move to not dirty the rest of the register.
+    __ movflt($dst$$XMMRegister, $scalar$$XMMRegister, true);
+  %}
+  ins_pipe( pipe_slow );
+%}
+
+instruct PromD_reg(vec dst, vec src, vlRegD scalar) %{
+  match(Set dst (Promote src scalar));
+  format %{ "promoteD $dst,$src" %}
+  ins_encode %{
+    switch (Matcher::vector_length_in_bytes(this, $src)) {
+      case 16: __ movdqu   ($dst$$XMMRegister, $src$$XMMRegister); break;
+      case 32: __ vmovdqu  ($dst$$XMMRegister, $src$$XMMRegister); break;
+      case 64: __ evmovdqul($dst$$XMMRegister, $src$$XMMRegister, Assembler::AVX_512bit); break;
+      default: ShouldNotReachHere();
+    }
+    int vlen_enc = vector_length_encoding(this);
+    // Force single-single move to not dirty the rest of the register.
+    __ movdbl($dst$$XMMRegister, $scalar$$XMMRegister, true);
+  %}
+  ins_pipe( pipe_slow );
+%}
+
+
 // ====================REDUCTION ARITHMETIC=======================================
 
 // =======================Int Reduction==========================================
@@ -4586,7 +4891,7 @@ instruct reductionS(rRegI dst, rRegI src1, legVec src2, legVec vtmp1, legVec vtm
   match(Set dst ( OrReductionV  src1 src2));
   match(Set dst (XorReductionV  src1 src2));
   match(Set dst (MinReductionV  src1 src2));
-  match(Set dst (MaxReductionV  src1 src2));
+  match(Set dst (MaxReductionV  src1 src2));  
   effect(TEMP vtmp1, TEMP vtmp2);
   format %{ "vector_reduction_short $dst,$src1,$src2 ; using $vtmp1, $vtmp2 as TEMP" %}
   ins_encode %{

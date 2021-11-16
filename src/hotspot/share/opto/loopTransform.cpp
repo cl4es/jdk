@@ -1771,6 +1771,8 @@ void PhaseIdealLoop::insert_vector_post_loop(IdealLoopTree *loop, Node_List &old
   // so guess that unit vector trips is a reasonable value.
   post_head->set_profile_trip_cnt(cur_unroll);
 
+
+
   // Now force out all loop-invariant dominating tests.  The optimizer
   // finds some, but we _know_ they are all useless.
   peeled_dom_test_elim(loop, old_new);
@@ -1997,6 +1999,9 @@ void PhaseIdealLoop::do_unroll(IdealLoopTree *loop, Node_List &old_new, bool adj
   }
 #endif
 
+  if (TraceLoopOpts && loop_head->has_passed_idiom_analysis()) {
+    tty->print_cr("Unrolling idiom loop!");
+  }
   // Remember loop node count before unrolling to detect
   // if rounds of unroll,optimize are making progress
   loop_head->set_node_count_before_unroll(loop->_body.size());
@@ -2225,6 +2230,12 @@ void PhaseIdealLoop::do_unroll(IdealLoopTree *loop, Node_List &old_new, bool adj
     if (!has_ctrl(old)) {
       set_loop(nnn, loop);
     }
+  }
+
+  if (TraceLoopOpts && loop_head->has_passed_idiom_analysis()) {
+    tty->print_cr("Idiom unroll amount: %d (%s)",
+                  loop_head->unrolled_count(),
+                  C->method()->name()->as_utf8());
   }
 
   loop->record_for_igvn();
@@ -3219,6 +3230,7 @@ void IdealLoopTree::remove_main_post_loops(CountedLoopNode *cl, PhaseIdealLoop *
 // counter with the value it will have on the last iteration.  This will break
 // the loop.
 bool IdealLoopTree::do_remove_empty_loop(PhaseIdealLoop *phase) {
+
   // Minimum size must be empty loop
   if (_body.size() > EMPTY_LOOP_SIZE) {
     return false;
@@ -3233,6 +3245,7 @@ bool IdealLoopTree::do_remove_empty_loop(PhaseIdealLoop *phase) {
   if (!phase->is_member(this, phase->get_ctrl(cl->loopexit()->in(CountedLoopEndNode::TestValue)))) {
     return false;   // Infinite loop
   }
+
   if (cl->is_pre_loop()) {
     // If the loop we are removing is a pre-loop then the main and post loop
     // can be removed as well.
@@ -3439,6 +3452,7 @@ bool IdealLoopTree::iteration_split_impl(PhaseIdealLoop *phase, Node_List &old_n
   // A post-loop will finish any odd iterations (leftover after
   // unrolling), plus any needed for RCE purposes.
 
+
   bool should_unroll = policy_unroll(phase);
   bool should_rce    = policy_range_check(phase, false);
 
@@ -3479,6 +3493,8 @@ bool IdealLoopTree::iteration_split_impl(PhaseIdealLoop *phase, Node_List &old_n
       }
     }
 
+
+
     // Double loop body for unrolling.  Adjust the minimum-trip test (will do
     // twice as many iterations as before) and the main body limit (only do
     // an even number of trips).  If we are peeling, we might enable some RCE
@@ -3507,6 +3523,11 @@ bool IdealLoopTree::iteration_split(PhaseIdealLoop* phase, Node_List &old_new) {
   // Recursively iteration split nested loops
   if (_child && !_child->iteration_split(phase, old_new)) {
     return false;
+  }
+
+  if (_head && _head->is_CountedLoop() &&
+      _head->as_CountedLoop()->has_passed_idiom_analysis()) {
+    volatile int _ = 3;
   }
 
   // Clean out prior deadwood

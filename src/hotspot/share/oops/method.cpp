@@ -108,6 +108,9 @@ Method::Method(ConstMethod* xconst, AccessFlags access_flags) {
   clear_method_counters();
   set_vtable_index(Method::garbage_vtable_index);
 
+  _n_vectorized_loops = 0;
+  _n_vectorized_loops_comp_idx = 0;
+
   // Fix and bury in Method*
   set_interpreter_entry(NULL); // sets i2i entry and from_int
   set_adapter_entry(NULL);

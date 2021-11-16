@@ -1742,6 +1742,9 @@
   declare_c2_type(AddReductionVFNode, ReductionNode)                      \
   declare_c2_type(AddVDNode, VectorNode)                                  \
   declare_c2_type(AddReductionVDNode, ReductionNode)                      \
+  declare_c2_type(ConV16Node, VectorNode)                                 \
+  declare_c2_type(ConV32Node, VectorNode)                                 \
+  declare_c2_type(ElemLShiftVNode, VectorNode)                            \
   declare_c2_type(SubVBNode, VectorNode)                                  \
   declare_c2_type(SubVSNode, VectorNode)                                  \
   declare_c2_type(SubVINode, VectorNode)                                  \
@@ -1791,6 +1794,11 @@
   declare_c2_type(MaxVNode, VectorNode)                                   \
   declare_c2_type(MinVNode, VectorNode)                                   \
   declare_c2_type(LoadVectorNode, LoadNode)                               \
+  declare_c2_type(LoadUBVectorNode, LoadVectorNode)                       \
+  declare_c2_type(LoadBVectorNode, LoadVectorNode)                        \
+  declare_c2_type(LoadUSVectorNode, LoadVectorNode)                       \
+  declare_c2_type(LoadSVectorNode, LoadVectorNode)                        \
+  declare_c2_type(LoadIVectorNode, LoadVectorNode)                        \
   declare_c2_type(StoreVectorNode, StoreNode)                             \
   declare_c2_type(ReplicateBNode, VectorNode)                             \
   declare_c2_type(ReplicateSNode, VectorNode)                             \
@@ -1798,6 +1806,7 @@
   declare_c2_type(ReplicateLNode, VectorNode)                             \
   declare_c2_type(ReplicateFNode, VectorNode)                             \
   declare_c2_type(ReplicateDNode, VectorNode)                             \
+  declare_c2_type(PromoteNode, VectorNode)                                \
   declare_c2_type(PackNode, VectorNode)                                   \
   declare_c2_type(PackBNode, PackNode)                                    \
   declare_c2_type(PackSNode, PackNode)                                    \

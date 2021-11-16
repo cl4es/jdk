@@ -81,6 +81,10 @@ class Method : public Metadata {
                                                  // note: can have vtables with >2**16 elements (because of inheritance)
   u2                _intrinsic_id;               // vmSymbols::intrinsic_id (0 == _none)
 
+public:
+  int _n_vectorized_loops;
+  int _n_vectorized_loops_comp_idx;
+private:
   // Flags
   enum Flags {
     _caller_sensitive      = 1 << 0,

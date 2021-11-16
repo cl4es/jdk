@@ -1782,15 +1782,35 @@ private:
 
   // Zero extend moves
   void pmovzxbw(XMMRegister dst, XMMRegister src);
-  void pmovzxbw(XMMRegister dst, Address src);
   void pmovzxbd(XMMRegister dst, XMMRegister src);
-  void vpmovzxbw( XMMRegister dst, Address src, int vector_len);
+  void vpmovzxbw(XMMRegister dst, Address src, int vector_len);
   void pmovzxdq(XMMRegister dst, XMMRegister src);
   void vpmovzxbw(XMMRegister dst, XMMRegister src, int vector_len);
   void vpmovzxdq(XMMRegister dst, XMMRegister src, int vector_len);
   void vpmovzxbd(XMMRegister dst, XMMRegister src, int vector_len);
   void vpmovzxbq(XMMRegister dst, XMMRegister src, int vector_len);
   void evpmovzxbw(XMMRegister dst, KRegister mask, Address src, int vector_len);
+
+  // Additional SSE4.1 packed moves
+  void pmovsxbw(XMMRegister dst, Address src); // packed B -> S
+  void pmovsxbd(XMMRegister dst, Address src); // packed B -> I
+  void pmovsxbq(XMMRegister dst, Address src); // packed B -> L
+  void pmovsxwd(XMMRegister dst, Address src); // packed S -> I
+  void pmovsxwq(XMMRegister dst, Address src); // packed S -> L
+  void pmovsxdq(XMMRegister dst, Address src); // packed I  -> L
+
+  void pmovzxbw(XMMRegister dst, Address src); // packed UB -> S
+  void pmovzxbd(XMMRegister dst, Address src); // packed UB -> I
+  void pmovzxbq(XMMRegister dst, Address src); // packed UB -> L
+  void pmovzxwd(XMMRegister dst, Address src); // packed US -> I
+  void pmovzxwq(XMMRegister dst, Address src); // packed US -> L
+
+  // Additional AVX2 packed moves
+  void vpmovzxbd(XMMRegister dst, Address src, int vector_len);
+  void vpmovzxwd(XMMRegister dst, Address src, int vector_len);
+  void vpmovsxbd(XMMRegister dst, Address src, int vector_len);
+  void vpmovsxwd(XMMRegister dst, Address src, int vector_len);
+  void vpmovsxdq(XMMRegister dst, Address src, int vector_len);
 
   // Sign extend moves
   void pmovsxbd(XMMRegister dst, XMMRegister src);

@@ -268,6 +268,11 @@ Form::DataType Form::is_load_from_memory(const char *opType) const {
   if( strcmp(opType,"LoadRange")==0 )  return Form::idealI;
   if( strcmp(opType,"LoadS")==0 )  return Form::idealS;
   if( strcmp(opType,"LoadVector")==0 )  return Form::idealV;
+  if( strcmp(opType,"LoadUBVector")==0 )  return Form::idealV;
+  if( strcmp(opType,"LoadBVector")==0 )  return Form::idealV;
+  if( strcmp(opType,"LoadUSVector")==0 )  return Form::idealV;
+  if( strcmp(opType,"LoadSVector")==0 )  return Form::idealV;
+  if( strcmp(opType,"LoadIVector")==0 )  return Form::idealV;
   if( strcmp(opType,"LoadVectorGather")==0 )  return Form::idealV;
   if( strcmp(opType,"LoadVectorMasked")==0 )  return Form::idealV;
   assert( strcmp(opType,"Load") != 0, "Must type Loads" );

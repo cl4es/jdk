@@ -374,36 +374,36 @@ class AbstractAssembler : public ResourceObj  {
   //
   // We must remember the code section (insts or stubs) in c1
   // so we can reset to the proper section in end_a_const().
-  address int_constant(jint c) {
+  address int_constant(jint c, int required_align=-1) {
     CodeSection* c1 = _code_section;
-    address ptr = start_a_const(sizeof(c), sizeof(c));
+    address ptr = start_a_const(sizeof(c), required_align == -1 ? sizeof(c) : required_align);
     if (ptr != NULL) {
       emit_int32(c);
       end_a_const(c1);
     }
     return ptr;
   }
-  address long_constant(jlong c) {
+  address long_constant(jlong c, int required_align=-1) {
     CodeSection* c1 = _code_section;
-    address ptr = start_a_const(sizeof(c), sizeof(c));
+    address ptr = start_a_const(sizeof(c), required_align == -1 ? sizeof(c) : required_align);
     if (ptr != NULL) {
       emit_int64(c);
       end_a_const(c1);
     }
     return ptr;
   }
-  address double_constant(jdouble c) {
+  address double_constant(jdouble c, int required_align=-1) {
     CodeSection* c1 = _code_section;
-    address ptr = start_a_const(sizeof(c), sizeof(c));
+    address ptr = start_a_const(sizeof(c), required_align == -1 ? sizeof(c) : required_align);
     if (ptr != NULL) {
       emit_double(c);
       end_a_const(c1);
     }
     return ptr;
   }
-  address float_constant(jfloat c) {
+  address float_constant(jfloat c, int required_align=-1) {
     CodeSection* c1 = _code_section;
-    address ptr = start_a_const(sizeof(c), sizeof(c));
+    address ptr = start_a_const(sizeof(c), required_align == -1 ? sizeof(c) : required_align);
     if (ptr != NULL) {
       emit_float(c);
       end_a_const(c1);

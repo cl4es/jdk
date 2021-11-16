@@ -2669,6 +2669,8 @@ void Matcher::specialize_generic_vector_operands() {
   Unique_Node_List live_nodes;
   C->identify_useful_nodes(live_nodes);
 
+
+
   while (live_nodes.size() > 0) {
     MachNode* m = live_nodes.pop()->isa_Mach();
     if (m != NULL) {
@@ -2730,6 +2732,9 @@ bool Matcher::verify_after_postselect_cleanup() {
       if (m != NULL) {
         assert(!Matcher::is_reg2reg_move(m), "no MoveVec nodes allowed");
         for (uint j = 0; j < m->num_opnds(); j++) {
+          if (Matcher::is_generic_vector(m->_opnds[j])) {
+            tty->print_cr("Bad type (%d): m->_opnds[%d] = %s\n", m->num_opnds(), j, m->_opnds[j]->Name());
+          }
           assert(!Matcher::is_generic_vector(m->_opnds[j]), "no generic vector operands allowed");
         }
       }
