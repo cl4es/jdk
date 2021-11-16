@@ -4421,8 +4421,8 @@ void Assembler::vpmovzxbw(XMMRegister dst, XMMRegister src, int vector_len) {
 
 void Assembler::vpmovsxbw(XMMRegister dst, XMMRegister src, int vector_len) {
   assert(vector_len == AVX_128bit? VM_Version::supports_avx() :
-  vector_len == AVX_256bit? VM_Version::supports_avx2() :
-  vector_len == AVX_512bit? VM_Version::supports_avx512bw() : 0, "");
+         vector_len == AVX_256bit? VM_Version::supports_avx2() :
+         vector_len == AVX_512bit? VM_Version::supports_avx512bw() : 0, "");
   InstructionAttr attributes(vector_len, /* rex_w */ false, /* legacy_mode */ _legacy_mode_bw, /* no_mask_reg */ true, /* uses_vl */ true);
   int encode = simd_prefix_and_encode(dst, xnoreg, src, VEX_SIMD_66, VEX_OPCODE_0F_38, &attributes);
   emit_int16(0x20, (0xC0 | encode));

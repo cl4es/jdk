@@ -1826,14 +1826,15 @@ void C2_MacroAssembler::reduce2S(int opcode, Register dst, Register src1, XMMReg
     if (vtmp1 != src2) {
       movdqu(vtmp1, src2);
     }
-    phaddd(vtmp1, vtmp1);
+    phaddw(vtmp1, vtmp1);
   } else {
     pshufd(vtmp1, src2, 0x1);
     reduce_operation_128(T_SHORT, opcode, vtmp1, src2);
   }
   movdl(vtmp2, src1);
   reduce_operation_128(T_SHORT, opcode, vtmp1, vtmp2);
-  movdl(dst, vtmp1);
+  pextrw(dst, vtmp1, 0x0);
+  movswl(dst, dst);
 }
 
 void C2_MacroAssembler::reduce4S(int opcode, Register dst, Register src1, XMMRegister src2, XMMRegister vtmp1, XMMRegister vtmp2) {
