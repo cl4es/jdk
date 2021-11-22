@@ -393,6 +393,17 @@ final class StringConcatHelper {
     }
 
     /**
+     * Concat a s2 with a possibly null s1. If s1 is null, return s2
+     */
+    static StringBuilder concatChunk(StringBuilder s1, String s2) {
+        if (s1 == null) {
+            s1 = new StringBuilder();
+        }
+        s1.append(s2);
+        return s1;
+    }
+
+    /**
      * Perform a simple concatenation between two objects. Added for startup
      * performance, but also demonstrates the code that would be emitted by
      * {@code java.lang.invoke.StringConcatFactory$MethodHandleInlineCopyStrategy}
@@ -419,7 +430,7 @@ final class StringConcatHelper {
         long indexCoder = mix(initialCoder(), s1);
         indexCoder = mix(indexCoder, s2);
         byte[] buf = newArray(indexCoder);
-        // prepend each argument in reverse order, since we prepending
+        // prepend each argument in reverse order, since we are prepending
         // from the end of the byte array
         indexCoder = prepend(indexCoder, buf, s2);
         indexCoder = prepend(indexCoder, buf, s1);
@@ -451,6 +462,9 @@ final class StringConcatHelper {
     static String stringOf(Object value) {
         String s;
         return (value == null || (s = value.toString()) == null) ? "null" : s;
+    }
+    static String stringOf(StringBuilder value) {
+        return value.toString();
     }
 
     private static final long LATIN1 = (long)String.LATIN1 << 32;

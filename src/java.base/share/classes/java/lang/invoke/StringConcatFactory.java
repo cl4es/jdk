@@ -32,6 +32,7 @@ import sun.invoke.util.Wrapper;
 
 import java.lang.invoke.MethodHandles.Lookup;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
@@ -117,6 +118,12 @@ public final class StringConcatFactory {
      * combinators to use some arguments.
      */
     private static final int MAX_INDY_CONCAT_ARG_SLOTS = 200;
+
+    /**
+     * To help performance, we split the number of arguments handled in a larger
+     * concatenation call into chunks of a certain number of arguments.
+     */
+    private static final int CHUNK_SIZE = 25;
 
     private static final JavaLangAccess JLA = SharedSecrets.getJavaLangAccess();
 
@@ -488,7 +495,75 @@ public final class StringConcatFactory {
             }
             // else... fall-through to slow-path
         }
+        if (mt.parameterCount() <= CHUNK_SIZE) {
+            return generateMHInlineCopyChunk(mt, elements);
+        } else {
+            List<TypeAndElements> splits = split(mt, elements);
+            MethodHandle[] chunkMHs = new MethodHandle[splits.size()];
+            Class<?>[] strings = new Class<?>[chunkMHs.length - 1];
+            Arrays.fill(strings, String.class);
+            // Starting shape is (StringBuilder,String,String,...)StringBuilder - one String argument per chunk
+            MethodHandle mh = MethodHandles.dropArguments(concatChunk(), 2, strings);
 
+            int pos = 2;
+            for (int i = 0; i < chunkMHs.length; i++) {
+                var typeAndElements = splits.get(i);
+                MethodHandle chunkMH = chunkMHs[i] = generateMHInlineCopyChunk(typeAndElements.type(), typeAndElements.elements());
+                mh = MethodHandles.filterArgumentsWithCombiner(mh, 0, concatChunk(), 0, pos - 1);
+                Class<?>[] ptypes = typeAndElements.type().erase().parameterArray();
+                System.out.println("1 " + mh.type());
+                mh = MethodHandles.dropArguments(mh, pos, ptypes);
+                System.out.println("2 " + mh.type());
+
+                mh = MethodHandles.foldArguments(mh, pos - 1, chunkMH);
+                System.out.println("3 " + mh.type());
+                pos += chunkMH.type().parameterCount();
+            }
+
+            mh = MethodHandles.insertArguments(mh, 0, (Object)null);
+            mh = MethodHandles.filterReturnValue(mh, stringifierFor(StringBuilder.class));
+            // The method handle shape here is (<args>).
+            return mh;
+        }
+    }
+
+    private static record TypeAndElements(MethodType type, List<String> elements) {}
+
+    /**
+     * Chops the method type into chunks of {@code CHUNK_SIZE} size.
+     */
+    private static List<TypeAndElements> split(MethodType type, List<String> elements) {
+
+        var splits = new ArrayList<TypeAndElements>();
+        Class<?>[] ptypes = type.ptypes();
+        int pos = CHUNK_SIZE;
+        int elementPos = 0;
+        while (pos < type.parameterCount()) {
+            MethodType chunkType = MethodType.methodType(type.rtype(), Arrays.copyOfRange(ptypes, pos - CHUNK_SIZE, pos));
+            int argCount = CHUNK_SIZE;
+            int currentPos = elementPos;
+            while (argCount > 0) {
+                String s = elements.get(currentPos++);
+                if (s == null) { // argument
+                    argCount--;
+                }
+            }
+            // fold trailing constant, so they don't get lost on a split boundary
+            if (elements.get(currentPos) != null) {
+                currentPos++;
+            }
+            splits.add(new TypeAndElements(chunkType, elements.subList(elementPos, currentPos)));
+            elementPos = currentPos;
+            pos += CHUNK_SIZE;
+        }
+        // Add remainder
+        splits.add(new TypeAndElements(
+                MethodType.methodType(type.rtype(), Arrays.copyOfRange(ptypes, pos - CHUNK_SIZE, ptypes.length)),
+                elements.subList(elementPos, elements.size())));
+        return splits;
+    }
+
+    private static MethodHandle generateMHInlineCopyChunk(MethodType mt, List<String> elements) {
         // Create filters and obtain filtered parameter types. Filters would be used in the beginning
         // to convert the incoming arguments into the arguments we can process (e.g. Objects -> Strings).
         // The filtered argument type list is used all over in the combinators below.
@@ -689,6 +764,17 @@ public final class StringConcatFactory {
         return mh;
     }
 
+    private @Stable static MethodHandle CONCAT_CHUNK;
+    private static MethodHandle concatChunk() {
+        MethodHandle mh = CONCAT_CHUNK;
+        if (mh == null) {
+            MethodHandle concatChunk = JLA.stringConcatHelper("concatChunk",
+                    methodType(StringBuilder.class, StringBuilder.class, String.class));
+            CONCAT_CHUNK = mh = concatChunk.rebind();
+        }
+        return mh;
+    }
+
     private @Stable static MethodHandle NEW_ARRAY_SUFFIX;
     private static MethodHandle newArrayWithSuffix(String suffix) {
         MethodHandle mh = NEW_ARRAY_SUFFIX;
@@ -721,6 +807,15 @@ public final class StringConcatFactory {
         if (mh == null) {
             OBJECT_STRINGIFIER = mh = JLA.stringConcatHelper("stringOf",
                     methodType(String.class, Object.class));
+        }
+        return mh;
+    }
+    private @Stable static MethodHandle SB_STRINGIFIER;
+    private static MethodHandle sbStringifier() {
+        MethodHandle mh = SB_STRINGIFIER;
+        if (mh == null) {
+            SB_STRINGIFIER = mh = JLA.stringConcatHelper("stringOf",
+                    methodType(String.class, StringBuilder.class));
         }
         return mh;
     }
@@ -835,6 +930,8 @@ public final class StringConcatFactory {
     private static MethodHandle stringifierFor(Class<?> t) {
         if (t == Object.class) {
             return objectStringifier();
+        } else if (t == StringBuilder.class) {
+            return sbStringifier();
         } else if (t == float.class) {
             return floatStringifier();
         } else if (t == double.class) {
