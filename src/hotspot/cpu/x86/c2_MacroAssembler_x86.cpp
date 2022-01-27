@@ -3544,16 +3544,14 @@ void C2_MacroAssembler::has_negatives(Register ary1, Register len,
   load_unsigned_short(tmp1, Address(ary1, 0));
   andl(tmp1, 0x00008080);
   jccb(Assembler::notZero, TRUE_LABEL);
-  subptr(result, 2);
   lea(ary1, Address(ary1, 2));
 
   bind(COMPARE_BYTE);
   testl(result, 0x1);   // tail  byte
   jccb(Assembler::zero, FALSE_LABEL);
   load_unsigned_byte(tmp1, Address(ary1, 0));
-  andl(tmp1, 0x00000080);
-  jccb(Assembler::notEqual, TRUE_LABEL);
-  jmpb(FALSE_LABEL);
+  testl(tmp1, 0x00000080);
+  jccb(Assembler::zero, FALSE_LABEL);
 
   bind(TRUE_LABEL);
   movl(result, 1);   // return true
