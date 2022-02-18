@@ -695,7 +695,7 @@ final class VarHandles {
 //                @LambdaForm.Compiled
 //                @Hidden
 //                static final <METHOD> throws Throwable {
-//                    handle.checkExactAccessMode(ad);
+//                    if (handle.exact) handle.checkExactAccessMode(ad);
 //                    if (handle.isDirect() && handle.vform.methodType_table[ad.type] == ad.symbolicMethodTypeErased) {
 //                        <RESULT_ERASED>MethodHandle.linkToStatic(<LINK_TO_STATIC_ARGS>);<RETURN_ERASED>
 //                    } else {
@@ -710,7 +710,7 @@ final class VarHandles {
 //                @LambdaForm.Compiled
 //                @Hidden
 //                static final <METHOD> throws Throwable {
-//                    handle.checkExactAccessMode(ad);
+//                    if (handle.exact) handle.checkExactAccessMode(ad);
 //                    if (handle.isDirect() && handle.vform.methodType_table[ad.type] == ad.symbolicMethodTypeErased) {
 //                        MethodHandle.linkToStatic(<LINK_TO_STATIC_ARGS>);
 //                    } else if (handle.isDirect() && handle.vform.getMethodType_V(ad.type) == ad.symbolicMethodTypeErased) {

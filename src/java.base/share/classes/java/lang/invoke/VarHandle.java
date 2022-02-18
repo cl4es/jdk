@@ -2039,7 +2039,15 @@ public abstract class VarHandle implements Constable {
 
     @ForceInline
     final void checkExactAccessMode(VarHandle.AccessDescriptor ad) {
-        if (exact && accessModeType(ad.type) != ad.symbolicMethodTypeExact) {
+        MethodType[] types = methodType_table;
+        if (methodType_table == null) {
+            types = methodType_table = new MethodType[VarHandle.AccessType.COUNT];
+        }
+        MethodType mt = types[ad.type];
+        if (mt == null) {
+            mt = types[ad.type] = accessModeTypeUncached(ad.type);
+        }
+        if (mt != ad.symbolicMethodTypeExact) {
             throwWrongMethodTypeException(ad);
         }
     }
@@ -2052,10 +2060,13 @@ public abstract class VarHandle implements Constable {
 
     @ForceInline
     final MethodType accessModeType(int accessTypeOrdinal) {
-        TypesAndInvokers tis = getTypesAndInvokers();
-        MethodType mt = tis.methodType_table[accessTypeOrdinal];
+        MethodType[] types = methodType_table;
+        if (methodType_table == null) {
+            types = methodType_table = new MethodType[VarHandle.AccessType.COUNT];
+        }
+        MethodType mt = types[accessTypeOrdinal];
         if (mt == null) {
-            mt = tis.methodType_table[accessTypeOrdinal] =
+            mt = types[accessTypeOrdinal] =
                     accessModeTypeUncached(accessTypeOrdinal);
         }
         return mt;
@@ -2130,34 +2141,24 @@ public abstract class VarHandle implements Constable {
     }
 
     @Stable
-    TypesAndInvokers typesAndInvokers;
+    MethodType[] methodType_table;
 
-    static class TypesAndInvokers {
-        final @Stable
-        MethodType[] methodType_table = new MethodType[VarHandle.AccessType.COUNT];
-
-        final @Stable
-        MethodHandle[] methodHandle_table = new MethodHandle[AccessMode.COUNT];
-    }
-
-    @ForceInline
-    private final TypesAndInvokers getTypesAndInvokers() {
-        TypesAndInvokers tis = typesAndInvokers;
-        if (tis == null) {
-            tis = typesAndInvokers = new TypesAndInvokers();
-        }
-        return tis;
-    }
+    @Stable
+    MethodHandle[] methodHandle_table;
 
     @ForceInline
     MethodHandle getMethodHandle(int mode) {
-        TypesAndInvokers tis = getTypesAndInvokers();
-        MethodHandle mh = tis.methodHandle_table[mode];
+        MethodHandle[] handles = methodHandle_table;
+        if (handles == null) {
+            handles = methodHandle_table = new MethodHandle[AccessMode.COUNT];
+        }
+        MethodHandle mh = handles[mode];
         if (mh == null) {
-            mh = tis.methodHandle_table[mode] = getMethodHandleUncached(mode);
+            mh = handles[mode] = getMethodHandleUncached(mode);
         }
         return mh;
     }
+
     private final MethodHandle getMethodHandleUncached(int mode) {
         MethodType mt = accessModeType(AccessMode.values()[mode]).
                 insertParameterTypes(0, VarHandle.class);
