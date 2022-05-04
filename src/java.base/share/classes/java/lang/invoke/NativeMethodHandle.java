@@ -88,8 +88,7 @@ import static java.lang.invoke.MethodHandleStatics.newInternalError;
     }
 
     private static LambdaForm makePreparedLambdaForm(MethodType mtype) {
-        MethodType linkerType = mtype.insertParameterTypes(0, MethodHandle.class)
-                .appendParameterTypes(Object.class);
+        MethodType linkerType = mtype.invokerType().appendParameterTypes(Object.class);
         MemberName linker = new MemberName(MethodHandle.class, "linkToNative", linkerType, REF_invokeStatic);
         try {
             linker = IMPL_NAMES.resolveOrFail(REF_invokeStatic, linker, null, LM_TRUSTED, NoSuchMethodException.class);

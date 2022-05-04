@@ -28,6 +28,7 @@ package java.lang.invoke;
 import sun.invoke.util.Wrapper;
 
 import java.lang.ref.SoftReference;
+import jdk.internal.vm.annotation.Stable;
 
 import static java.lang.invoke.MethodHandleStatics.newIllegalArgumentException;
 
@@ -49,6 +50,9 @@ final class MethodTypeForm {
     final short primitiveCount;
     final MethodType erasedType;        // the canonical erasure
     final MethodType basicType;         // the canonical erasure, with primitives simplified
+
+    @Stable MethodType basicInvokerType;   // Cache of basicType.insertParameters(0, MethodHandle.class)
+    @Stable MethodType basicObjectType;    // Cache of basicType.insertParameters(0, Object.class)
 
     // Cached adapter information:
     final SoftReference<MethodHandle>[] methodHandles;
@@ -107,6 +111,36 @@ final class MethodTypeForm {
      */
     public MethodType basicType() {
         return basicType;
+    }
+
+    /* package-private */ MethodType basicInvokerType() {
+        MethodType bit = basicInvokerType;
+        if (bit == null) {
+            // Can't use MethodType.insertParameterTypes due to circularity
+            int num = basicType.parameterCount();
+            Class<?>[] params = new Class<?>[1 + num];
+            System.arraycopy(basicType.ptypes(), 0, params, 1, num);
+            params[0] = MethodHandle.class;
+            basicInvokerType = bit = MethodType.methodType(basicType.rtype(), params);
+        }
+        return bit;
+    }
+
+    /* package-private */ MethodType basicObjectType() {
+        MethodType bot = basicObjectType;
+        if (bot == null) {
+            int num = basicType.parameterCount();
+            if (primitiveCount == 0) {
+                return MethodType.genericMethodType(1 + num);
+            } else {
+                // Can't use MethodType.insertParameterTypes due to circularity
+                Class<?>[] params = new Class<?>[1 + num];
+                System.arraycopy(basicType.ptypes(), 0, params, 1, num);
+                params[0] = Object.class;
+                basicObjectType = bot = MethodType.methodType(basicType.rtype(), params);
+            }
+        }
+        return bot;
     }
 
     public MethodHandle cachedMethodHandle(int which) {

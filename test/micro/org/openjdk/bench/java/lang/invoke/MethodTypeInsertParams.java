@@ -24,12 +24,16 @@ package org.openjdk.bench.java.lang.invoke;
 
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
+import org.openjdk.jmh.annotations.Fork;
 import org.openjdk.jmh.annotations.Mode;
+import org.openjdk.jmh.annotations.Measurement;
 import org.openjdk.jmh.annotations.OutputTimeUnit;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
+import org.openjdk.jmh.annotations.Warmup;
 
+import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodType;
 import java.util.concurrent.TimeUnit;
 
@@ -39,13 +43,16 @@ import java.util.concurrent.TimeUnit;
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
 @State(Scope.Benchmark)
+@Warmup(iterations = 10, time = 1000, timeUnit = TimeUnit.MILLISECONDS)
+@Measurement(iterations = 5, time = 1000, timeUnit = TimeUnit.MILLISECONDS)
+@Fork(3)
 public class MethodTypeInsertParams {
 
     private MethodType mt;
 
     @Setup
     public void setup() {
-        mt = MethodType.methodType(void.class, int.class);
+        mt = MethodType.methodType(Object.class, Object.class);
     }
 
     @Benchmark
@@ -71,6 +78,16 @@ public class MethodTypeInsertParams {
     @Benchmark
     public MethodType testInsert_A3() {
         return mt.insertParameterTypes(0, int.class, int.class, int.class);
+    }
+
+    @Benchmark
+    public MethodType testInsert_MethodHandle() {
+        return mt.insertParameterTypes(0, MethodHandle.class);
+    }
+
+    @Benchmark
+    public MethodType testInsert_Object() {
+        return mt.insertParameterTypes(0, Object.class);
     }
 
 }

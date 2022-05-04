@@ -481,20 +481,25 @@ class MethodType
      * @throws NullPointerException if {@code ptypesToInsert} or any of its elements is null
      */
     public MethodType insertParameterTypes(int num, Class<?>... ptypesToInsert) {
+        int ilen = ptypesToInsert.length;
+        if (num == 0 && ilen == 1 && this == form.basicType()) {
+            Class<?> ptype = ptypesToInsert[0];
+            if (ptype == Object.class)        return form.basicObjectType();
+            if (ptype == MethodHandle.class)  return form.basicInvokerType();
+        }
         int len = ptypes.length;
         if (num < 0 || num > len)
             throw newIndexOutOfBoundsException(num);
-        int ins = checkPtypes(ptypesToInsert);
-        checkSlotCount(parameterSlotCount() + ptypesToInsert.length + ins);
-        int ilen = ptypesToInsert.length;
         if (ilen == 0)  return this;
+        int ins = checkPtypes(ptypesToInsert);
+        checkSlotCount(parameterSlotCount() + ilen + ins);
         Class<?>[] nptypes = new Class<?>[len + ilen];
         if (num > 0) {
             System.arraycopy(ptypes, 0, nptypes, 0, num);
         }
         System.arraycopy(ptypesToInsert, 0, nptypes, num, ilen);
         if (num < len) {
-            System.arraycopy(ptypes, num, nptypes, num+ilen, len-num);
+            System.arraycopy(ptypes, num, nptypes, num + ilen, len - num);
         }
         return makeImpl(rtype, nptypes, true);
     }
@@ -691,7 +696,7 @@ class MethodType
      * @throws NullPointerException if {@code nrtype} is null
      */
     public MethodType changeReturnType(Class<?> nrtype) {
-        if (returnType() == nrtype)  return this;
+        if (rtype == nrtype)  return this;
         return methodType(nrtype, ptypes, true);
     }
 
@@ -991,12 +996,12 @@ class MethodType
     }
     /*non-public*/
     boolean isConvertibleTo(MethodType newType) {
-        MethodTypeForm oldForm = this.form();
-        MethodTypeForm newForm = newType.form();
+        MethodTypeForm oldForm = this.form;
+        MethodTypeForm newForm = newType.form;
         if (oldForm == newForm)
             // same parameter count, same primitive/object mix
             return true;
-        if (!canConvert(returnType(), newType.returnType()))
+        if (!canConvert(rtype, newType.rtype))
             return false;
         Class<?>[] srcTypes = newType.ptypes;
         Class<?>[] dstTypes = ptypes;
