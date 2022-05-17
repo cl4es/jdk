@@ -81,6 +81,12 @@ public class AccessibleObject implements AnnotatedElement {
         SharedSecrets.setJavaLangReflectAccess(new ReflectAccess());
     }
 
+    /**
+     * Used by the VM to inject a shared, singleton empty class
+     * when appropriate in derived classes.
+     */
+    private static final Class<?>[] EMPTY_CLASS_ARRAY = new Class<?>[0];
+
     static void checkPermission() {
         @SuppressWarnings("removal")
         SecurityManager sm = System.getSecurityManager();

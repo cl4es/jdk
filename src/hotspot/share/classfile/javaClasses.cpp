@@ -3323,6 +3323,7 @@ void java_lang_LiveStackFrameInfo::set_mode(oop element, int value) {
 // java_lang_AccessibleObject
 
 int java_lang_reflect_AccessibleObject::_override_offset;
+int java_lang_reflect_AccessibleObject::_static_empty_class_array_offset;
 
 #define ACCESSIBLEOBJECT_FIELDS_DO(macro) \
   macro(_override_offset, k, "override", bool_signature, false)
@@ -3344,6 +3345,26 @@ jboolean java_lang_reflect_AccessibleObject::override(oop reflect) {
 
 void java_lang_reflect_AccessibleObject::set_override(oop reflect, jboolean value) {
   reflect->bool_field_put(_override_offset, (int) value);
+}
+
+int java_lang_reflect_AccessibleObject::empty_class_array_offset() {
+  if (_static_empty_class_array_offset == 0) {
+    InstanceKlass* k = vmClasses::reflect_AccessibleObject_klass();
+    if (k != NULL && k->is_initialized()) {
+      compute_offset(_static_empty_class_array_offset, k, "EMPTY_CLASS_ARRAY", vmSymbols::class_array_signature(), true);
+    }
+  }
+  return _static_empty_class_array_offset;
+}
+
+objArrayOop java_lang_reflect_AccessibleObject::empty_class_array() {
+  int offset = empty_class_array_offset();
+  if (offset == 0) {
+    return NULL;
+  }
+  InstanceKlass* ik = vmClasses::reflect_AccessibleObject_klass();
+  oop base = ik->static_field_base_raw();
+  return objArrayOop(base->obj_field(_static_empty_class_array_offset));
 }
 
 // java_lang_reflect_Method

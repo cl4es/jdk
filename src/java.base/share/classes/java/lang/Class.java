@@ -653,7 +653,7 @@ public final class Class<T> implements java.io.Serializable,
                 );
             }
             try {
-                Class<?>[] empty = {};
+                Class<?>[] empty = EMPTY_CLASS_ARRAY;
                 final Constructor<T> c = getReflectionFactory().copyConstructor(
                     getConstructor0(empty, Member.DECLARED));
                 // Disable accessibility checks on the constructor

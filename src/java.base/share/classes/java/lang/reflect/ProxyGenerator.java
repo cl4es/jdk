@@ -82,8 +82,6 @@ final class ProxyGenerator extends ClassWriter {
     private static final String NAME_CLINIT = "<clinit>";
     private static final String NAME_LOOKUP_ACCESSOR = "proxyClassLookup";
 
-    private static final Class<?>[] EMPTY_CLASS_ARRAY = new Class<?>[0];
-
     /**
      * name of field for storing a proxy instance's invocation handler
      */
@@ -539,7 +537,7 @@ final class ProxyGenerator extends ClassWriter {
                         exceptionTypes, pm.exceptionTypes, legalExceptions);
                 collectCompatibleTypes(
                         pm.exceptionTypes, exceptionTypes, legalExceptions);
-                pm.exceptionTypes = legalExceptions.toArray(EMPTY_CLASS_ARRAY);
+                pm.exceptionTypes = legalExceptions.toArray(new Class<?>[0]);
                 return;
             }
         }

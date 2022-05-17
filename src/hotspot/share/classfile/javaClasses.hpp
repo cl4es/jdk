@@ -291,7 +291,6 @@ class java_lang_Class : AllStatic {
   static int _source_file_offset;
   static int _classData_offset;
   static int _classRedefinedCount_offset;
-
   static bool _offsets_computed;
 
   static GrowableArray<Klass*>* _fixup_mirror_list;
@@ -715,15 +714,18 @@ class java_lang_reflect_AccessibleObject: AllStatic {
   // Note that to reduce dependencies on the JDK we compute these
   // offsets at run-time.
   static int _override_offset;
+  static int _static_empty_class_array_offset;
 
   static void compute_offsets();
-
+  static int empty_class_array_offset();
  public:
   static void serialize_offsets(SerializeClosure* f) NOT_CDS_RETURN;
 
   // Accessors
   static jboolean override(oop reflect);
   static void set_override(oop reflect, jboolean value);
+
+  static objArrayOop empty_class_array();
 
   // Debugging
   friend class JavaClasses;
