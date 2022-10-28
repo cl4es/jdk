@@ -130,6 +130,7 @@ class LambdaForm {
     final Kind kind;
     MemberName vmentry;   // low-level behavior, or null if not yet prepared
     private boolean isCompiled;
+    private boolean skipInterpreter;
 
     // Either a LambdaForm cache (managed by LambdaFormEditor) or a link to uncustomized version (for customized LF)
     volatile Object transformCache;
@@ -351,7 +352,9 @@ class LambdaForm {
         if (maxOutArity > MethodType.MAX_MH_INVOKER_ARITY) {
             // Cannot use LF interpreter on very high arity expressions.
             assert(maxOutArity <= MethodType.MAX_JVM_ARITY);
-            compileToBytecode();
+            this.skipInterpreter = true;
+        } else {
+            this.skipInterpreter = false;
         }
     }
     LambdaForm(int arity, Name[] names) {
@@ -470,7 +473,7 @@ class LambdaForm {
         LambdaForm customForm = new LambdaForm(arity, names, result, forceInline, mh, kind);
         if (COMPILE_THRESHOLD >= 0 && isCompiled) {
             // If shared LambdaForm has been compiled, compile customized version as well.
-            customForm.compileToBytecode();
+            customForm.skipInterpreter();
         }
         customForm.transformCache = this; // LambdaFormEditor should always use uncustomized form.
         return customForm;
@@ -485,7 +488,7 @@ class LambdaForm {
         LambdaForm uncustomizedForm = (LambdaForm)transformCache;
         if (COMPILE_THRESHOLD >= 0 && isCompiled) {
             // If customized LambdaForm has been compiled, compile uncustomized version as well.
-            uncustomizedForm.compileToBytecode();
+            uncustomizedForm.skipInterpreter();
         }
         return uncustomizedForm;
     }
@@ -803,7 +806,7 @@ class LambdaForm {
      * as a sort of pre-invocation linkage step.)
      */
     public void prepare() {
-        if (COMPILE_THRESHOLD == 0 && !forceInterpretation() && !isCompiled) {
+        if (skipInterpreter || COMPILE_THRESHOLD == 0) {
             compileToBytecode();
         }
         if (this.vmentry != null) {
@@ -831,8 +834,16 @@ class LambdaForm {
         return LF_FAILED;
     }
 
+    void forceCompileToBytecode() {
+        compileToBytecode();
+    }
+
+    void skipInterpreter() {
+        this.skipInterpreter = true;
+    }
+
     /** Generate optimizable bytecode for this form. */
-    void compileToBytecode() {
+    private void compileToBytecode() {
         if (forceInterpretation()) {
             return; // this should not be compiled
         }
@@ -1742,7 +1753,7 @@ class LambdaForm {
             if (isVoid) {
                 Name[] idNames = new Name[] { argument(0, L_TYPE) };
                 idForm = new LambdaForm(1, idNames, VOID_RESULT, Kind.IDENTITY);
-                idForm.compileToBytecode();
+                idForm.skipInterpreter();
                 idFun = new NamedFunction(idMem, SimpleMethodHandle.make(idMem.getInvocationType(), idForm));
 
                 zeForm = idForm;
@@ -1750,14 +1761,14 @@ class LambdaForm {
             } else {
                 Name[] idNames = new Name[] { argument(0, L_TYPE), argument(1, type) };
                 idForm = new LambdaForm(2, idNames, 1, Kind.IDENTITY);
-                idForm.compileToBytecode();
+                idForm.skipInterpreter();
                 idFun = new NamedFunction(idMem, MethodHandleImpl.makeIntrinsic(SimpleMethodHandle.make(idMem.getInvocationType(), idForm),
                             MethodHandleImpl.Intrinsic.IDENTITY));
 
                 Object zeValue = Wrapper.forBasicType(btChar).zero();
                 Name[] zeNames = new Name[] { argument(0, L_TYPE), new Name(idFun, zeValue) };
                 zeForm = new LambdaForm(1, zeNames, 1, Kind.ZERO);
-                zeForm.compileToBytecode();
+                zeForm.skipInterpreter();
                 zeFun = new NamedFunction(zeMem, MethodHandleImpl.makeIntrinsic(SimpleMethodHandle.make(zeMem.getInvocationType(), zeForm),
                         MethodHandleImpl.Intrinsic.ZERO));
             }
