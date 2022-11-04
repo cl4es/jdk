@@ -131,6 +131,7 @@ class LambdaForm {
     MemberName vmentry;   // low-level behavior, or null if not yet prepared
     private boolean isCompiled;
     private boolean skipInterpreter;
+    private boolean isResolved;
 
     // Either a LambdaForm cache (managed by LambdaFormEditor) or a link to uncustomized version (for customized LF)
     volatile Object transformCache;
@@ -316,7 +317,8 @@ class LambdaForm {
         GUARD_WITH_CATCH("guardWithCatch"),
         VARHANDLE_EXACT_INVOKER("VH.exactInvoker"),
         VARHANDLE_INVOKER("VH.invoker", "invoker"),
-        VARHANDLE_LINKER("VH.invoke_MT", "invoke_MT");
+        VARHANDLE_LINKER("VH.invoke_MT", "invoke_MT"),
+        RESOLVER("resolve");
 
         final String defaultLambdaName;
         final String methodName;
@@ -806,23 +808,35 @@ class LambdaForm {
      * as a sort of pre-invocation linkage step.)
      */
     public void prepare() {
-        if (skipInterpreter || COMPILE_THRESHOLD == 0) {
-            compileToBytecode();
-        }
         if (this.vmentry != null) {
-            // already prepared (e.g., a primitive DMH invoker form)
-            return;
+            return; // already resolved or already prepared (e.g. lform from cache)
         }
-        MethodType mtype = methodType();
-        LambdaForm prep = mtype.form().cachedLambdaForm(MethodTypeForm.LF_INTERPRET);
-        if (prep == null) {
-            assert (isValidSignature(basicTypeSignature()));
-            prep = new LambdaForm(mtype);
-            prep.vmentry = InvokerBytecodeGenerator.generateLambdaFormInterpreterEntryPoint(mtype);
-            prep = mtype.form().setCachedLambdaForm(MethodTypeForm.LF_INTERPRET, prep);
+        if (RESOLVE_LAZY) {
+            this.vmentry = LambdaFormResolvers.resolverFor(this);
+        } else {
+            resolve();
         }
-        this.vmentry = prep.vmentry;
-        // TO DO: Maybe add invokeGeneric, invokeWithArguments
+    }
+
+    void resolve() {
+        if (isResolved) {
+            return; // already resolved
+        }
+        if ((skipInterpreter || COMPILE_THRESHOLD == 0) && !forceInterpretation()) {
+            compileToBytecode();
+        } else {
+            MethodType mtype = methodType();
+            LambdaForm prep = mtype.form().cachedLambdaForm(MethodTypeForm.LF_INTERPRET);
+            if (prep == null) {
+                assert (isValidSignature(basicTypeSignature()));
+                prep = new LambdaForm(mtype);
+                prep.vmentry = InvokerBytecodeGenerator.generateLambdaFormInterpreterEntryPoint(mtype);
+                prep = mtype.form().setCachedLambdaForm(MethodTypeForm.LF_INTERPRET, prep);
+            }
+            this.vmentry = prep.vmentry;
+            // TO DO: Maybe add invokeGeneric, invokeWithArguments
+        }
+        this.isResolved = true;
     }
 
     private static @Stable PerfCounter LF_FAILED;
@@ -835,10 +849,12 @@ class LambdaForm {
     }
 
     void forceCompileToBytecode() {
-        compileToBytecode();
+        skipInterpreter();
+        resolve();
     }
 
     void skipInterpreter() {
+        assert !isResolved || isCompiled : "already resolved to interpreted";
         this.skipInterpreter = true;
     }
 
