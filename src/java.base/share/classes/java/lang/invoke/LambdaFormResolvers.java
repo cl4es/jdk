@@ -36,6 +36,7 @@ import static java.lang.invoke.MethodHandleNatives.Constants.REF_invokeStatic;
 import static java.lang.invoke.MethodHandleStatics.TRACE_RESOLVERS;
 import static java.lang.invoke.MethodHandleStatics.USE_PRE_GEN_RESOLVERS;
 import static java.lang.invoke.MethodHandles.Lookup.IMPL_LOOKUP;
+import static java.lang.invoke.MethodTypeForm.MN_RESOLVER;
 
 class LambdaFormResolvers {
 
@@ -62,23 +63,22 @@ class LambdaFormResolvers {
     public static MemberName resolverFor(LambdaForm form) {
         MethodType basicType = form.methodType();
 
-        LambdaForm lform = basicType.form().cachedLambdaForm(MethodTypeForm.LF_RESOLVER);
-        if (lform != null) {
-            return lform.vmentry;
+        MemberName name = basicType.form().cachedMemberName(MN_RESOLVER);
+        if (name != null) {
+            return name;
         }
         if (USE_PRE_GEN_RESOLVERS) {
-            MemberName name = findPreGenResolver(basicType);
-            if (name != null) {
-                return name;
-            }
+            name = findPreGenResolver(basicType);
         }
 
-        lform = makeResolverForm(basicType);
-        assert lform.methodType() == form.methodType()
-                : "type mismatch: " + lform.methodType() + " != " + form.methodType();
+        if (name == null) {
+            LambdaForm lform = makeResolverForm(basicType);
+            assert lform.methodType() == form.methodType()
+                    : "type mismatch: " + lform.methodType() + " != " + form.methodType();
+            name = lform.vmentry; // we only care about the bytecode
+        }
 
-        basicType.form().setCachedLambdaForm(MethodTypeForm.LF_RESOLVER, lform);
-        return lform.vmentry; // we only care about the bytecode
+        return basicType.form().setCachedMemberName(MN_RESOLVER, name);
     }
 
     private static MemberName findPreGenResolver(MethodType basicType) {
