@@ -55,32 +55,38 @@ class LambdaFormResolvers {
         return Wrapper.forBasicType(pt).basicTypeChar();
     }
 
+    public static boolean canResolve(LambdaForm.Kind kind) {
+        return kind != LambdaForm.Kind.RESOLVER;
+    }
+
     public static MemberName resolverFor(LambdaForm form) {
         MethodType basicType = form.methodType();
-        MemberName name = findPreGenResolver(basicType);
-        if (name != null) {
-            return name;
+
+        LambdaForm lform = basicType.form().cachedLambdaForm(MethodTypeForm.LF_RESOLVER);
+        if (lform != null) {
+            return lform.vmentry;
+        }
+        if (USE_PRE_GEN_RESOLVERS) {
+            MemberName name = findPreGenResolver(basicType);
+            if (name != null) {
+                return name;
+            }
         }
 
-        LambdaForm lform = makeResolverForm(basicType);
-        assert lform.methodType()== form.methodType()
-                : "type mismatch: " +  lform.methodType() + " != " + form.methodType();
+        lform = makeResolverForm(basicType);
+        assert lform.methodType() == form.methodType()
+                : "type mismatch: " + lform.methodType() + " != " + form.methodType();
+
+        basicType.form().setCachedLambdaForm(MethodTypeForm.LF_RESOLVER, lform);
         return lform.vmentry; // we only care about the bytecode
     }
 
     private static MemberName findPreGenResolver(MethodType basicType) {
-        if (!USE_PRE_GEN_RESOLVERS) return null;
-
         String resolverName = getResolverName(basicType);
         return IMPL_LOOKUP.resolveOrNull(REF_invokeStatic, LambdaFormResolvers.class, resolverName, basicType);
     }
 
     private static LambdaForm makeResolverForm(MethodType basicType) {
-        LambdaForm lform = basicType.form().cachedLambdaForm(MethodTypeForm.LF_RESOLVER);
-        if (lform != null) {
-            return lform;
-        }
-
         if (TRACE_RESOLVERS) {
             System.out.println("[TRACE_RESOLVERS] generating resolver for: " + basicType);
         }
@@ -100,11 +106,11 @@ class LambdaFormResolvers {
         // do not use a basic invoker handle here to avoid max arity problems
         Object[] args = Arrays.copyOf(names, basicType.parameterCount()); // forward all args
         MethodType invokerType = basicType.dropParameterTypes(0, 1); // drop leading MH
-        names[INVOKE] = new Name(new NamedFunction(invokerType), args);
+        names[INVOKE] = new Name(new NamedFunction(Invokers.invokeBasicMethod(invokerType)), args);
 
-        lform = new LambdaForm(basicType.parameterCount(), names, INVOKE, LambdaForm.Kind.RESOLVER);
+        LambdaForm lform = new LambdaForm(basicType.parameterCount(), names, INVOKE, LambdaForm.Kind.RESOLVER);
         lform.forceCompileToBytecode(); // no cycles, compile this now
-        return basicType.form().setCachedLambdaForm(MethodTypeForm.LF_RESOLVER, lform);
+        return lform;
     }
 
     // some pre-generated resolvers
