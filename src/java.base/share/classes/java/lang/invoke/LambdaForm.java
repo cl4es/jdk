@@ -811,7 +811,7 @@ class LambdaForm {
         if (this.vmentry != null) {
             return; // already resolved or already prepared (e.g. lform from cache)
         }
-        if (RESOLVE_LAZY) {
+        if (RESOLVE_LAZY && LambdaFormResolvers.canResolve(this.kind)) {
             this.vmentry = LambdaFormResolvers.resolverFor(this);
         } else {
             resolve();
