@@ -91,8 +91,14 @@ final class MethodTypeForm {
             LF_VH_GEN_INVOKER          = 23,  // VarHandle generic invoker
             LF_VH_GEN_LINKER           = 24,  // VarHandle generic linker
             LF_COLLECTOR               = 25,  // collector handle
-            LF_RESOLVER                = 26,  // resolver for lambda forms
             LF_LIMIT                   = 27;
+
+    final SoftReference<MemberName>[] memberNames;
+
+    static final int
+            MN_RESOLVER                = 0,  // resolver for lambda forms
+            MN_LIMIT                   = 1;
+
 
     /** Return the type corresponding uniquely (1-1) to this MT-form.
      *  It might have any primitive returns or arguments, but will have no references except Object.
@@ -146,6 +152,24 @@ final class MethodTypeForm {
         return form;
     }
 
+    public MemberName cachedMemberName(int which) {
+        SoftReference<MemberName> entry = memberNames[which];
+        return (entry != null) ? entry.get() : null;
+    }
+
+    public synchronized MemberName setCachedMemberName(int which, MemberName name) {
+        // Simulate a CAS, to avoid racy duplication of results.
+        SoftReference<MemberName> entry = memberNames[which];
+        if (entry != null) {
+            MemberName prev = entry.get();
+            if (prev != null) {
+                return prev;
+            }
+        }
+        memberNames[which] = new SoftReference<>(name);
+        return name;
+    }
+
     /**
      * Build an MTF for a given type, which must have all references erased to Object.
      * This MTF will stand for that type and all un-erased variations.
@@ -194,6 +218,7 @@ final class MethodTypeForm {
             this.parameterSlotCount = (short)pslotCount;
             this.lambdaForms   = new SoftReference[LF_LIMIT];
             this.methodHandles = new SoftReference[MH_LIMIT];
+            this.memberNames   = new SoftReference[MN_LIMIT];
         } else {
             this.basicType = MethodType.methodType(basicReturnType, basicPtypes, true);
             // fill in rest of data from the basic type:
@@ -204,6 +229,7 @@ final class MethodTypeForm {
             this.primitiveCount = that.primitiveCount;
             this.methodHandles = null;
             this.lambdaForms = null;
+            this.memberNames = null;
         }
     }
 
