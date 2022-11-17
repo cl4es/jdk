@@ -695,7 +695,7 @@ class InvokerBytecodeGenerator {
         return lastInternalName = c.getName().replace('.', '/');
     }
 
-    private static MemberName resolveFrom(String name, MethodType type, Class<?> holder) {
+    static MemberName resolveFrom(String name, MethodType type, Class<?> holder) {
         assert(!UNSAFE.shouldBeInitialized(holder)) : holder + "not initialized";
         MemberName member = new MemberName(holder, name, type, REF_invokeStatic);
         MemberName resolvedMember = MemberName.getFactory().resolveOrNull(REF_invokeStatic, member, holder, LM_TRUSTED);
@@ -751,6 +751,7 @@ class InvokerBytecodeGenerator {
             case DIRECT_INVOKE_STATIC:      // fall-through
             case DIRECT_INVOKE_STATIC_INIT: // fall-through
             case DIRECT_INVOKE_VIRTUAL:     return resolveFrom(name, invokerType, DirectMethodHandle.Holder.class);
+            case RESOLVER:                  return resolveFrom(name, invokerType, LambdaFormResolvers.Holder.class);
         }
         return null;
     }
