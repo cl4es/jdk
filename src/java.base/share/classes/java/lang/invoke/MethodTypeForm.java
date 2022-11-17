@@ -194,6 +194,7 @@ final class MethodTypeForm {
             this.parameterSlotCount = (short)pslotCount;
             this.lambdaForms   = new SoftReference[LF_LIMIT];
             this.methodHandles = new SoftReference[MH_LIMIT];
+            this.memberNames   = new SoftReference[MN_LIMIT];
         } else {
             this.basicType = MethodType.methodType(basicReturnType, basicPtypes, true);
             // fill in rest of data from the basic type:
@@ -204,6 +205,7 @@ final class MethodTypeForm {
             this.primitiveCount = that.primitiveCount;
             this.methodHandles = null;
             this.lambdaForms = null;
+            this.memberNames = null;
         }
     }
 

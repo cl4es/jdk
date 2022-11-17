@@ -24,8 +24,6 @@
  */
 package java.lang.invoke;
 
-import sun.invoke.util.Wrapper;
-
 import java.lang.invoke.LambdaForm.Name;
 import java.lang.invoke.LambdaForm.NamedFunction;
 import java.util.Arrays;
