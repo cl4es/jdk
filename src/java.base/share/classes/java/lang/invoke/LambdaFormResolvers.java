@@ -24,37 +24,16 @@
  */
 package java.lang.invoke;
 
-import jdk.internal.vm.annotation.Hidden;
-import sun.invoke.util.Wrapper;
-
 import java.lang.invoke.LambdaForm.Name;
 import java.lang.invoke.LambdaForm.NamedFunction;
 import java.util.Arrays;
 
 import static java.lang.invoke.LambdaForm.arguments;
-import static java.lang.invoke.MethodHandleNatives.Constants.REF_invokeStatic;
 import static java.lang.invoke.MethodHandleStatics.TRACE_RESOLVERS;
-import static java.lang.invoke.MethodHandleStatics.USE_PRE_GEN_RESOLVERS;
-import static java.lang.invoke.MethodHandles.Lookup.IMPL_LOOKUP;
-import static java.lang.invoke.MethodTypeForm.MN_RESOLVER;
+import static java.lang.invoke.MethodHandleStatics.UNSAFE;
+import static java.lang.invoke.MethodTypeForm.LF_RESOLVER;
 
 class LambdaFormResolvers {
-
-    private static String getResolverName(MethodType type) {
-        String prefix = "resolve_";
-        StringBuilder sb = new StringBuilder(prefix.length() + type.parameterCount() + 2);
-
-        sb.append(prefix);
-        for (int i = 1; i < type.parameterCount() - 1; i++) {
-            Class<?> pt = type.parameterType(i);
-            sb.append(getCharType(pt));
-        }
-        sb.append('_').append(getCharType(type.returnType()));
-        return sb.toString();
-    }
-    private static char getCharType(Class<?> pt) {
-        return Wrapper.forBasicType(pt).basicTypeChar();
-    }
 
     public static boolean canResolve(LambdaForm.Kind kind) {
         return kind != LambdaForm.Kind.RESOLVER;
@@ -62,31 +41,23 @@ class LambdaFormResolvers {
 
     public static MemberName resolverFor(LambdaForm form) {
         MethodType basicType = form.methodType();
-
-        MemberName name = basicType.form().cachedMemberName(MN_RESOLVER);
-        if (name != null) {
-            return name;
+        LambdaForm lform = basicType.form().cachedLambdaForm(LF_RESOLVER);
+        if (lform != null) {
+            return lform.vmentry;
         }
-        if (USE_PRE_GEN_RESOLVERS) {
-            name = findPreGenResolver(basicType);
-        }
-
-        if (name == null) {
-            LambdaForm lform = makeResolverForm(basicType);
+        MemberName memberName = InvokerBytecodeGenerator.resolveFrom(LambdaForm.Kind.RESOLVER.methodName, basicType, LambdaFormResolvers.Holder.class);
+        if (memberName != null) {
+            lform = LambdaForm.createWrapperForResolver(memberName);
+        } else {
+            lform = makeResolverForm(basicType);
             assert lform.methodType() == form.methodType()
                     : "type mismatch: " + lform.methodType() + " != " + form.methodType();
-            name = lform.vmentry; // we only care about the bytecode
         }
-
-        return basicType.form().setCachedMemberName(MN_RESOLVER, name);
+        lform = basicType.form().setCachedLambdaForm(LF_RESOLVER, lform);
+        return lform.vmentry;
     }
 
-    private static MemberName findPreGenResolver(MethodType basicType) {
-        String resolverName = getResolverName(basicType);
-        return IMPL_LOOKUP.resolveOrNull(REF_invokeStatic, LambdaFormResolvers.class, resolverName, basicType);
-    }
-
-    private static LambdaForm makeResolverForm(MethodType basicType) {
+    static LambdaForm makeResolverForm(MethodType basicType) {
         if (TRACE_RESOLVERS) {
             System.out.println("[TRACE_RESOLVERS] generating resolver for: " + basicType);
         }
@@ -113,15 +84,18 @@ class LambdaFormResolvers {
         return lform;
     }
 
-    // some pre-generated resolvers
+    // pre-generated resolvers
 
-    @LambdaForm.Compiled
-    @Hidden
-    static void resolve_L_V(Object recv) throws Throwable {
-        MethodHandle mh = (MethodHandle) recv;
-        mh.form.resolve();
-        mh.invokeBasic();
+    static {
+        // The Holder class will contain pre-generated Resolvers resolved
+        // speculatively using resolveOrNull. However, that doesn't initialize the class,
+        // which subtly breaks inlining etc. By forcing initialization of the Holder
+        // class we avoid these issues.
+        UNSAFE.ensureClassInitialized(LambdaFormResolvers.Holder.class);
     }
+
+    /* Placeholder class for Resolvers generated ahead of time */
+    final class Holder {}
 
     private static final class ResolveHolder {
         static final NamedFunction NF_resolve;

@@ -339,14 +339,16 @@ class LambdaForm {
     LambdaForm(int arity, Name[] names, int result, Kind kind) {
         this(arity, names, result, /*forceInline=*/true, /*customized=*/null, kind);
     }
-    LambdaForm(int arity, Name[] names, int result, boolean forceInline, MethodHandle customized) {
-        this(arity, names, result, forceInline, customized, Kind.GENERIC);
-    }
     LambdaForm(int arity, Name[] names, int result, boolean forceInline, MethodHandle customized, Kind kind) {
+        this(arity, result, forceInline, customized, kind, names.clone());
         assert(namesOK(arity, names));
+    }
+
+    // Final, private version that doesn't check or clone names
+    LambdaForm(int arity, int result, boolean forceInline, MethodHandle customized, Kind kind, Name[] names) {
         this.arity = arity;
         this.result = fixResult(result, names);
-        this.names = names.clone();
+        this.names = names;
         this.forceInline = forceInline;
         this.customized = customized;
         this.kind = kind;
@@ -379,21 +381,26 @@ class LambdaForm {
         return names;
     }
 
-    private LambdaForm(MethodType mt) {
+    private static LambdaForm createBlankForType(MethodType mt) {
         // Make a blank lambda form, which returns a constant zero or null.
         // It is used as a template for managing the invocation of similar forms that are non-empty.
         // Called only from getPreparedForm.
-        this.arity = mt.parameterCount();
-        this.result = (mt.returnType() == void.class || mt.returnType() == Void.class) ? -1 : arity;
-        this.names = buildEmptyNames(arity, mt, result == -1);
-        this.forceInline = true;
-        this.customized = null;
-        this.kind = Kind.ZERO;
-        assert(nameRefsAreLegal());
-        assert(isEmpty());
-        String sig = null;
-        assert(isValidSignature(sig = basicTypeSignature()));
-        assert(sig.equals(basicTypeSignature())) : sig + " != " + basicTypeSignature();
+        int arity = mt.parameterCount();
+        int result = (mt.returnType() == void.class || mt.returnType() == Void.class) ? -1 : arity;
+        LambdaForm form = new LambdaForm(arity, result, /* forceInline */ true,
+                null, Kind.ZERO, buildEmptyNames(arity, mt, result == -1));
+        assert(form.nameRefsAreLegal() && form.isEmpty() && isValidSignature(form.basicTypeSignature()));
+        return form;
+    }
+
+    static final Name[] EMPTY_NAMES = new Name[0];
+    static LambdaForm createWrapperForResolver(MemberName mn) {
+        // Make a blank lambda form wrapping an existing vmentry.
+        // This is used for the LambdaFormResolver case where the resolved member name is all
+        // we care about but we need a LF wrapper for caching and pre-generation hooks.
+        LambdaForm form = new LambdaForm(0, -1, /*forceInline*/ true, null, Kind.RESOLVER, EMPTY_NAMES);
+        form.vmentry = mn;
+        return form;
     }
 
     private static Name[] buildEmptyNames(int arity, MethodType mt, boolean isVoid) {
@@ -402,6 +409,7 @@ class LambdaForm {
             Name zero = new Name(constantZero(basicType(mt.returnType())));
             names[arity] = zero.newIndex(arity);
         }
+        assert(namesOK(arity, names));
         return names;
     }
 
@@ -828,8 +836,7 @@ class LambdaForm {
             MethodType mtype = methodType();
             LambdaForm prep = mtype.form().cachedLambdaForm(MethodTypeForm.LF_INTERPRET);
             if (prep == null) {
-                assert (isValidSignature(basicTypeSignature()));
-                prep = new LambdaForm(mtype);
+                prep = createBlankForType(mtype);
                 prep.vmentry = InvokerBytecodeGenerator.generateLambdaFormInterpreterEntryPoint(mtype);
                 prep = mtype.form().setCachedLambdaForm(MethodTypeForm.LF_INTERPRET, prep);
             }
