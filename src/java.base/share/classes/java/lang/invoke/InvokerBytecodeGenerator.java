@@ -751,7 +751,6 @@ class InvokerBytecodeGenerator {
             case DIRECT_INVOKE_STATIC:      // fall-through
             case DIRECT_INVOKE_STATIC_INIT: // fall-through
             case DIRECT_INVOKE_VIRTUAL:     return resolveFrom(name, invokerType, DirectMethodHandle.Holder.class);
-            case RESOLVER:                  return resolveFrom(name, invokerType, LambdaFormResolvers.Holder.class);
         }
         return null;
     }
