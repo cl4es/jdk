@@ -29,9 +29,6 @@ import java.lang.invoke.LambdaForm.NamedFunction;
 import java.util.Arrays;
 
 import static java.lang.invoke.LambdaForm.arguments;
-import static java.lang.invoke.MethodHandleNatives.Constants.LM_TRUSTED;
-import static java.lang.invoke.MethodHandleNatives.Constants.REF_invokeStatic;
-import static java.lang.invoke.MethodHandleStatics.traceLambdaForm;
 import static java.lang.invoke.MethodHandleStatics.UNSAFE;
 import static java.lang.invoke.MethodTypeForm.LF_RESOLVER;
 
@@ -41,79 +38,12 @@ import static java.lang.invoke.MethodTypeForm.LF_RESOLVER;
  */
 class LambdaFormResolvers {
 
-    private static MemberName resolveFrom(String name, MethodType type, Class<?> holder) {
-        assert(!UNSAFE.shouldBeInitialized(holder)) : holder + "not initialized";
-        MemberName member = new MemberName(holder, name, type, REF_invokeStatic);
-        MemberName resolvedMember = MemberName.getFactory().resolveOrNull(REF_invokeStatic, member, holder, LM_TRUSTED);
-        traceLambdaForm(name, type, holder, resolvedMember);
-        return resolvedMember;
-    }
-
-    private static MemberName lookupPregenerated(LambdaForm form, MethodType invokerType) {
-        if (form.customized != null) {
-            // No pre-generated version for customized LF
-            return null;
-        }
-        String name = form.kind.methodName;
-        switch (form.kind) {
-            case BOUND_REINVOKER: {
-                name = name + "_" + BoundMethodHandle.speciesDataFor(form).key();
-                return resolveFrom(name, invokerType, DelegatingMethodHandle.Holder.class);
-            }
-            case DELEGATE:                  return resolveFrom(name, invokerType, DelegatingMethodHandle.Holder.class);
-            case ZERO:                      // fall-through
-            case IDENTITY: {
-                name = name + "_" + form.returnType().basicTypeChar();
-                return resolveFrom(name, invokerType, LambdaForm.Holder.class);
-            }
-            case EXACT_INVOKER:             // fall-through
-            case EXACT_LINKER:              // fall-through
-            case LINK_TO_CALL_SITE:         // fall-through
-            case LINK_TO_TARGET_METHOD:     // fall-through
-            case GENERIC_INVOKER:           // fall-through
-            case GENERIC_LINKER:            return resolveFrom(name, invokerType, Invokers.Holder.class);
-            case GET_REFERENCE:             // fall-through
-            case GET_BOOLEAN:               // fall-through
-            case GET_BYTE:                  // fall-through
-            case GET_CHAR:                  // fall-through
-            case GET_SHORT:                 // fall-through
-            case GET_INT:                   // fall-through
-            case GET_LONG:                  // fall-through
-            case GET_FLOAT:                 // fall-through
-            case GET_DOUBLE:                // fall-through
-            case PUT_REFERENCE:             // fall-through
-            case PUT_BOOLEAN:               // fall-through
-            case PUT_BYTE:                  // fall-through
-            case PUT_CHAR:                  // fall-through
-            case PUT_SHORT:                 // fall-through
-            case PUT_INT:                   // fall-through
-            case PUT_LONG:                  // fall-through
-            case PUT_FLOAT:                 // fall-through
-            case PUT_DOUBLE:                // fall-through
-            case DIRECT_NEW_INVOKE_SPECIAL: // fall-through
-            case DIRECT_INVOKE_INTERFACE:   // fall-through
-            case DIRECT_INVOKE_SPECIAL:     // fall-through
-            case DIRECT_INVOKE_SPECIAL_IFC: // fall-through
-            case DIRECT_INVOKE_STATIC:      // fall-through
-            case DIRECT_INVOKE_STATIC_INIT: // fall-through
-            case DIRECT_INVOKE_VIRTUAL:     return resolveFrom(name, invokerType, DirectMethodHandle.Holder.class);
-        }
-        return null;
-    }
-
-    public static MemberName resolverFor(LambdaForm form) {
-        MethodType basicType = form.methodType();
-        // Don't generate a resolver if there's a pregenerated form already
-        MemberName name = lookupPregenerated(form, basicType);
-        if (name != null) {
-            form.vmentry = name;
-            return name;
-        }
+    public static MemberName resolverFor(LambdaForm form, MethodType basicType) {
         LambdaForm lform = basicType.form().cachedLambdaForm(LF_RESOLVER);
         if (lform != null) {
             return lform.vmentry;
         }
-        MemberName memberName = resolveFrom(LambdaForm.Kind.RESOLVER.methodName, basicType, LambdaFormResolvers.Holder.class);
+        MemberName memberName = LambdaForm.resolveFrom(LambdaForm.Kind.RESOLVER.methodName, basicType, LambdaFormResolvers.Holder.class);
         if (memberName != null) {
             lform = LambdaForm.createWrapperForResolver(memberName);
         } else {
@@ -173,7 +103,7 @@ class LambdaFormResolvers {
         }
 
         public static void resolve(MethodHandle mh) {
-            mh.form.resolve();
+            mh.form.resolve(mh.form.methodType());
         }
     }
 
