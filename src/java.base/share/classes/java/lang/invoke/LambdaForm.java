@@ -819,14 +819,14 @@ class LambdaForm {
         if (this.vmentry != null) {
             return; // already resolved or already prepared (e.g. lform from cache)
         }
-        if (RESOLVE_LAZY && LambdaFormResolvers.canResolve(this.kind)) {
+        if (RESOLVE_LAZY) {
             this.vmentry = LambdaFormResolvers.resolverFor(this);
         } else {
             resolve();
         }
     }
 
-    void resolve() {
+    synchronized void resolve() {
         if (isResolved) {
             return; // already resolved
         }
@@ -1677,7 +1677,7 @@ class LambdaForm {
             names[i] = argument(i, basicType(types.parameterType(i)));
         return names;
     }
-    static final int INTERNED_ARGUMENT_LIMIT = 10;
+    static final int INTERNED_ARGUMENT_LIMIT = 25;
     private static final Name[][] INTERNED_ARGUMENTS
             = new Name[ARG_TYPE_LIMIT][INTERNED_ARGUMENT_LIMIT];
     static {
