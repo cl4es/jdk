@@ -819,21 +819,90 @@ class LambdaForm {
         if (this.vmentry != null) {
             return; // already resolved or already prepared (e.g. lform from cache)
         }
-        if (RESOLVE_LAZY && LambdaFormResolvers.canResolve(this.kind)) {
-            this.vmentry = LambdaFormResolvers.resolverFor(this);
+        // Obtain the invoker MethodType up front.
+        // This ensures that an IllegalArgumentException is directly thrown if the
+        // type would have 256 or more parameters
+        MethodType mt = methodType();
+
+        // Lookup pregenerated shapes
+        MemberName mn = lookupPregenerated(this, mt);
+        if (mn != null) {
+            this.vmentry = mn;
+        } else if (RESOLVE_LAZY) {
+            this.vmentry = LambdaFormResolvers.resolverFor(this, mt);
         } else {
-            resolve();
+            resolve(mt);
         }
     }
 
-    void resolve() {
+    static MemberName resolveFrom(String name, MethodType type, Class<?> holder) {
+        assert(!UNSAFE.shouldBeInitialized(holder)) : holder + "not initialized";
+        MemberName member = new MemberName(holder, name, type, REF_invokeStatic);
+        MemberName resolvedMember = MemberName.getFactory().resolveOrNull(REF_invokeStatic, member, holder, LM_TRUSTED);
+        traceLambdaForm(name, type, holder, resolvedMember);
+        return resolvedMember;
+    }
+
+    private static MemberName lookupPregenerated(LambdaForm form, MethodType invokerType) {
+        if (form.customized != null) {
+            // No pre-generated version for customized LF
+            return null;
+        }
+        String name = form.kind.methodName;
+        switch (form.kind) {
+            case BOUND_REINVOKER: {
+                name = name + "_" + BoundMethodHandle.speciesDataFor(form).key();
+                return resolveFrom(name, invokerType, DelegatingMethodHandle.Holder.class);
+            }
+            case DELEGATE:                  return resolveFrom(name, invokerType, DelegatingMethodHandle.Holder.class);
+            case ZERO:                      // fall-through
+            case IDENTITY: {
+                name = name + "_" + form.returnType().basicTypeChar();
+                return resolveFrom(name, invokerType, LambdaForm.Holder.class);
+            }
+            case EXACT_INVOKER:             // fall-through
+            case EXACT_LINKER:              // fall-through
+            case LINK_TO_CALL_SITE:         // fall-through
+            case LINK_TO_TARGET_METHOD:     // fall-through
+            case GENERIC_INVOKER:           // fall-through
+            case GENERIC_LINKER:            return resolveFrom(name, invokerType, Invokers.Holder.class);
+            case GET_REFERENCE:             // fall-through
+            case GET_BOOLEAN:               // fall-through
+            case GET_BYTE:                  // fall-through
+            case GET_CHAR:                  // fall-through
+            case GET_SHORT:                 // fall-through
+            case GET_INT:                   // fall-through
+            case GET_LONG:                  // fall-through
+            case GET_FLOAT:                 // fall-through
+            case GET_DOUBLE:                // fall-through
+            case PUT_REFERENCE:             // fall-through
+            case PUT_BOOLEAN:               // fall-through
+            case PUT_BYTE:                  // fall-through
+            case PUT_CHAR:                  // fall-through
+            case PUT_SHORT:                 // fall-through
+            case PUT_INT:                   // fall-through
+            case PUT_LONG:                  // fall-through
+            case PUT_FLOAT:                 // fall-through
+            case PUT_DOUBLE:                // fall-through
+            case DIRECT_NEW_INVOKE_SPECIAL: // fall-through
+            case DIRECT_INVOKE_INTERFACE:   // fall-through
+            case DIRECT_INVOKE_SPECIAL:     // fall-through
+            case DIRECT_INVOKE_SPECIAL_IFC: // fall-through
+            case DIRECT_INVOKE_STATIC:      // fall-through
+            case DIRECT_INVOKE_STATIC_INIT: // fall-through
+            case DIRECT_INVOKE_VIRTUAL:     return resolveFrom(name, invokerType, DirectMethodHandle.Holder.class);
+        }
+        return null;
+    }
+
+    synchronized void resolve(MethodType mtype) {
+        assert(methodType().equals(mtype));
         if (isResolved) {
             return; // already resolved
         }
         if ((skipInterpreter || COMPILE_THRESHOLD == 0) && !forceInterpretation()) {
-            compileToBytecode();
+            compileToBytecode(mtype);
         } else {
-            MethodType mtype = methodType();
             LambdaForm prep = mtype.form().cachedLambdaForm(MethodTypeForm.LF_INTERPRET);
             if (prep == null) {
                 prep = createBlankForType(mtype);
@@ -857,7 +926,7 @@ class LambdaForm {
 
     void forceCompileToBytecode() {
         skipInterpreter();
-        resolve();
+        resolve(methodType());
     }
 
     void skipInterpreter() {
@@ -866,7 +935,7 @@ class LambdaForm {
     }
 
     /** Generate optimizable bytecode for this form. */
-    private void compileToBytecode() {
+    private void compileToBytecode(MethodType invokerType) {
         if (forceInterpretation()) {
             return; // this should not be compiled
         }
@@ -874,11 +943,7 @@ class LambdaForm {
             return;  // already compiled somehow
         }
 
-        // Obtain the invoker MethodType outside of the following try block.
-        // This ensures that an IllegalArgumentException is directly thrown if the
-        // type would have 256 or more parameters
-        MethodType invokerType = methodType();
-        assert(vmentry == null || vmentry.getMethodType().basicType().equals(invokerType));
+        assert(methodType().equals(invokerType) && (vmentry == null || vmentry.getMethodType().basicType().equals(invokerType)));
         try {
             vmentry = InvokerBytecodeGenerator.generateCustomizedCode(this, invokerType);
             if (TRACE_INTERPRETER)
@@ -999,7 +1064,7 @@ class LambdaForm {
             invocationCounter++;  // benign race
             if (invocationCounter >= COMPILE_THRESHOLD) {
                 // Replace vmentry with a bytecode version of this LF.
-                compileToBytecode();
+                compileToBytecode(methodType());
             }
         }
     }
@@ -1009,7 +1074,7 @@ class LambdaForm {
             int ctr = invocationCounter++;  // benign race
             traceInterpreter("| invocationCounter", ctr);
             if (invocationCounter >= COMPILE_THRESHOLD) {
-                compileToBytecode();
+                compileToBytecode(methodType());
             }
         }
         Object rval;
@@ -1396,9 +1461,17 @@ class LambdaForm {
         Name(MemberName function, Object... arguments) {
             this(new NamedFunction(function), arguments);
         }
-        Name(NamedFunction function, Object... arguments) {
-            this(-1, function.returnType(), function, arguments = Arrays.copyOf(arguments, arguments.length, Object[].class));
+        Name(NamedFunction function, Object arg1) {
+            this(-1, function.returnType(), function, new Object[] { arg1 });
             assert(typesMatch(function, arguments));
+        }
+        Name(NamedFunction function, Object arg1, Object arg2) {
+            this(-1, function.returnType(), function, new Object[] { arg1, arg2 });
+            assert(typesMatch(function, arguments));
+        }
+        Name(NamedFunction function, Object... arguments) {
+            this(-1, function.returnType(), function, Arrays.copyOf(arguments, arguments.length, Object[].class));
+            assert(typesMatch(function, this.arguments));
         }
         /** Create a raw parameter of the given type, with an expected index. */
         Name(int index, BasicType type) {
@@ -1677,7 +1750,7 @@ class LambdaForm {
             names[i] = argument(i, basicType(types.parameterType(i)));
         return names;
     }
-    static final int INTERNED_ARGUMENT_LIMIT = 10;
+    static final int INTERNED_ARGUMENT_LIMIT = 25;
     private static final Name[][] INTERNED_ARGUMENTS
             = new Name[ARG_TYPE_LIMIT][INTERNED_ARGUMENT_LIMIT];
     static {

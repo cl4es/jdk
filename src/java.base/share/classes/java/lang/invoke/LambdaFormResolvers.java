@@ -29,23 +29,21 @@ import java.lang.invoke.LambdaForm.NamedFunction;
 import java.util.Arrays;
 
 import static java.lang.invoke.LambdaForm.arguments;
-import static java.lang.invoke.MethodHandleStatics.TRACE_RESOLVERS;
 import static java.lang.invoke.MethodHandleStatics.UNSAFE;
 import static java.lang.invoke.MethodTypeForm.LF_RESOLVER;
 
+/**
+ * Manage resolving LambdaForms, either by lazily spinning up bytecode for them
+ * or looking up pregenerated methods that implement them.
+ */
 class LambdaFormResolvers {
 
-    public static boolean canResolve(LambdaForm.Kind kind) {
-        return kind != LambdaForm.Kind.RESOLVER;
-    }
-
-    public static MemberName resolverFor(LambdaForm form) {
-        MethodType basicType = form.methodType();
+    public static MemberName resolverFor(LambdaForm form, MethodType basicType) {
         LambdaForm lform = basicType.form().cachedLambdaForm(LF_RESOLVER);
         if (lform != null) {
             return lform.vmentry;
         }
-        MemberName memberName = InvokerBytecodeGenerator.resolveFrom(LambdaForm.Kind.RESOLVER.methodName, basicType, LambdaFormResolvers.Holder.class);
+        MemberName memberName = LambdaForm.resolveFrom(LambdaForm.Kind.RESOLVER.methodName, basicType, LambdaFormResolvers.Holder.class);
         if (memberName != null) {
             lform = LambdaForm.createWrapperForResolver(memberName);
         } else {
@@ -58,10 +56,6 @@ class LambdaFormResolvers {
     }
 
     static LambdaForm makeResolverForm(MethodType basicType) {
-        if (TRACE_RESOLVERS) {
-            System.out.println("[TRACE_RESOLVERS] generating resolver for: " + basicType);
-        }
-
         final int THIS_MH   = 0;  // the target MH
         final int ARG_BASE  = 1;  // start of incoming arguments
         final int ARG_LIMIT = ARG_BASE + basicType.parameterCount() - 1; // -1 to skip receiver MH
@@ -109,7 +103,7 @@ class LambdaFormResolvers {
         }
 
         public static void resolve(MethodHandle mh) {
-            mh.form.resolve();
+            mh.form.resolve(mh.form.methodType());
         }
     }
 
