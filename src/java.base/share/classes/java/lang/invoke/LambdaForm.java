@@ -1173,22 +1173,10 @@ class LambdaForm {
         return LambdaFormEditor.lambdaFormEditor(this);
     }
 
-    boolean contains(Name name) {
-        int pos = name.index();
-        if (pos >= 0) {
-            return pos < names.length && name.equals(names[pos]);
-        }
-        for (int i = arity; i < names.length; i++) {
-            if (name.equals(names[i]))
-                return true;
-        }
-        return false;
-    }
-
     static class NamedFunction {
         final MemberName member;
         private @Stable MethodHandle resolvedHandle;
-        @Stable MethodHandle invoker;
+        private final MethodType methodType;
 
         NamedFunction(MethodHandle resolvedHandle) {
             this(resolvedHandle.internalMemberName(), resolvedHandle);
@@ -1196,6 +1184,7 @@ class LambdaForm {
         NamedFunction(MemberName member, MethodHandle resolvedHandle) {
             this.member = member;
             this.resolvedHandle = resolvedHandle;
+            this.methodType = createMethodType(resolvedHandle, member);
              // The following assert is almost always correct, but will fail for corner cases, such as PrivateInvokeTest.
              //assert(!isInvokeBasic(member));
         }
@@ -1208,6 +1197,7 @@ class LambdaForm {
                 // necessary to pass BigArityTest
                 this.member = Invokers.invokeBasicMethod(basicInvokerType);
             }
+            this.methodType = createMethodType(resolvedHandle, member);
             assert(isInvokeBasic(member));
         }
 
@@ -1284,10 +1274,6 @@ class LambdaForm {
             Object rval;
             try {
                 traceInterpreter("[ call", this, arguments);
-                if (invoker == null) {
-                    traceInterpreter("| getInvoker", this);
-                    invoker();
-                }
                 // resolvedHandle might be uninitialized, ok for tracing
                 if (resolvedHandle == null) {
                     traceInterpreter("| resolve", this);
@@ -1303,17 +1289,21 @@ class LambdaForm {
         }
 
         private MethodHandle invoker() {
-            if (invoker != null)  return invoker;
-            // Get an invoker and cache it.
-            return invoker = computeInvoker(methodType().form());
+            // Get an invoker.
+            return computeInvoker(methodType().form());
         }
 
         MethodType methodType() {
-            if (resolvedHandle != null)
+            return methodType;
+        }
+
+        private static MethodType createMethodType(MethodHandle resolvedHandle, MemberName member) {
+            if (resolvedHandle != null) {
                 return resolvedHandle.type();
-            else
+            } else {
                 // only for certain internal LFs during bootstrapping
                 return member.getInvocationType();
+            }
         }
 
         MemberName member() {
