@@ -29,6 +29,7 @@ import java.lang.invoke.LambdaForm.NamedFunction;
 import java.util.Arrays;
 
 import static java.lang.invoke.LambdaForm.arguments;
+import static java.lang.invoke.MethodHandleNatives.Constants.REF_invokeVirtual;
 import static java.lang.invoke.MethodHandleStatics.UNSAFE;
 import static java.lang.invoke.MethodTypeForm.LF_RESOLVER;
 
@@ -71,7 +72,10 @@ class LambdaFormResolvers {
         // do not use a basic invoker handle here to avoid max arity problems
         Object[] args = Arrays.copyOf(names, basicType.parameterCount()); // forward all args
         MethodType invokerType = basicType.dropParameterTypes(0, 1); // drop leading MH
-        names[INVOKE] = new Name(new NamedFunction(Invokers.invokeBasicMethod(invokerType)), args);
+        // Avoid resolving member name so that native wrapper doesn't get generated eagerly
+        MemberName invokeBasic = new MemberName(MethodHandle.class, "invokeBasic", invokerType, REF_invokeVirtual);
+        assert InvokerBytecodeGenerator.isStaticallyInvocable(invokeBasic);
+        names[INVOKE] = new Name(new NamedFunction(invokeBasic), args);
 
         LambdaForm lform = new LambdaForm(basicType.parameterCount(), names, INVOKE, LambdaForm.Kind.RESOLVER);
         lform.forceCompileToBytecode(); // no cycles, compile this now
