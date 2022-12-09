@@ -27,6 +27,7 @@ package java.lang.invoke;
 import java.lang.invoke.LambdaForm.Name;
 import java.lang.invoke.LambdaForm.NamedFunction;
 import java.util.Arrays;
+import java.util.function.Function;
 
 import static java.lang.invoke.LambdaForm.arguments;
 import static java.lang.invoke.MethodHandleNatives.Constants.REF_invokeVirtual;
@@ -107,7 +108,13 @@ class LambdaFormResolvers {
         }
 
         public static void resolve(MethodHandle mh) {
-            mh.form.resolve(mh.form.methodType());
+            LambdaForm oldForm = mh.form;
+            MemberName vmentry = oldForm.resolve(oldForm.methodType());
+            mh.updateForm(new Function<>() {
+                public LambdaForm apply(LambdaForm oldForm) {
+                    return new LambdaForm(oldForm, vmentry);
+                }
+            });
         }
     }
 

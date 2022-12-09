@@ -361,6 +361,20 @@ class LambdaForm {
             this.skipInterpreter = false;
         }
     }
+    // Specialized copy constructor for use when compiling a lazily resolved LF
+    // to ensure safe publication
+    LambdaForm(LambdaForm form, MemberName vmentry) {
+        this.arity = form.arity;
+        this.result = form.result;
+        this.names = form.names;
+        this.forceInline = form.forceInline;
+        this.customized = form.customized;
+        this.kind = form.kind;
+        this.skipInterpreter = true;
+        this.isResolved = true;
+        this.isCompiled = true;
+        this.vmentry = vmentry;
+    }
     LambdaForm(int arity, Name[] names) {
         this(arity, names, LAST_RESULT, /*forceInline=*/true, /*customized=*/null, Kind.GENERIC);
     }
@@ -814,15 +828,18 @@ class LambdaForm {
         // type would have 256 or more parameters
         MethodType mt = methodType();
 
-        // Lookup pregenerated shapes
-        MemberName mn = lookupPregenerated(this, mt);
-        if (mn != null) {
-            this.vmentry = mn;
-        } else if (RESOLVE_LAZY) {
-            this.vmentry = LambdaFormResolvers.resolverFor(this, mt);
-        } else {
-            resolve(mt);
+        if (this.customized == null) {
+            // Uncustomized forms can be pregenerated and/or resolved lazily
+            MemberName mn = lookupPregenerated(this, mt);
+            if (mn != null) {
+                this.vmentry = mn;
+                return;
+            } else if (RESOLVE_LAZY) {
+                this.vmentry = LambdaFormResolvers.resolverFor(this, mt);
+                return;
+            } // else fallthrough
         }
+        resolve(mt);
     }
 
     static MemberName resolveFrom(String name, MethodType type, Class<?> holder) {
@@ -885,13 +902,14 @@ class LambdaForm {
         return null;
     }
 
-    synchronized void resolve(MethodType mtype) {
+    synchronized MemberName resolve(MethodType mtype) {
         assert(methodType().equals(mtype));
+        MemberName vmentry = this.vmentry;
         if (isResolved) {
-            return; // already resolved
+            return vmentry; // already resolved
         }
         if ((skipInterpreter || COMPILE_THRESHOLD == 0) && !forceInterpretation()) {
-            compileToBytecode(mtype);
+            vmentry = compileToBytecode(mtype);
         } else {
             LambdaForm prep = mtype.form().cachedLambdaForm(MethodTypeForm.LF_INTERPRET);
             if (prep == null) {
@@ -899,10 +917,11 @@ class LambdaForm {
                 prep.vmentry = InvokerBytecodeGenerator.generateLambdaFormInterpreterEntryPoint(mtype);
                 prep = mtype.form().setCachedLambdaForm(MethodTypeForm.LF_INTERPRET, prep);
             }
-            this.vmentry = prep.vmentry;
+            this.vmentry = vmentry = prep.vmentry;
             // TO DO: Maybe add invokeGeneric, invokeWithArguments
         }
         this.isResolved = true;
+        return vmentry;
     }
 
     private static @Stable PerfCounter LF_FAILED;
@@ -925,17 +944,18 @@ class LambdaForm {
     }
 
     /** Generate optimizable bytecode for this form. */
-    private void compileToBytecode(MethodType invokerType) {
+    private MemberName compileToBytecode(MethodType invokerType) {
         if (forceInterpretation()) {
-            return; // this should not be compiled
+            return null; // this should not be compiled
         }
+        MemberName vmentry = this.vmentry;
         if (vmentry != null && isCompiled) {
-            return;  // already compiled somehow
+            return vmentry;  // already compiled somehow
         }
 
         assert(methodType().equals(invokerType) && (vmentry == null || vmentry.getMethodType().basicType().equals(invokerType)));
         try {
-            vmentry = InvokerBytecodeGenerator.generateCustomizedCode(this, invokerType);
+            this.vmentry = vmentry = InvokerBytecodeGenerator.generateCustomizedCode(this, invokerType);
             if (TRACE_INTERPRETER)
                 traceInterpreter("compileToBytecode", this);
             isCompiled = true;
@@ -954,6 +974,7 @@ class LambdaForm {
             // Wrap any exception
             throw newInternalError(this.toString(), e);
         }
+        return vmentry;
     }
 
     // The next few routines are called only from assert expressions
