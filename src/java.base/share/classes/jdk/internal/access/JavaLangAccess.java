@@ -52,6 +52,7 @@ import jdk.internal.vm.Continuation;
 import jdk.internal.vm.ContinuationScope;
 import jdk.internal.vm.StackableScope;
 import jdk.internal.vm.ThreadContainer;
+import jdk.internal.vm.annotation.IntrinsicCandidate;
 import sun.reflect.annotation.AnnotationType;
 import sun.nio.ch.Interruptible;
 
@@ -301,6 +302,11 @@ public interface JavaLangAccess {
      * given class loader.
      */
     Stream<ModuleLayer> layers(ClassLoader loader);
+
+    /**
+     * Count the number of leading positive bytes in the range.
+     */
+    int countPositives(byte[] ba, int off, int len);
 
     /**
      * Constructs a new {@code String} by decoding the specified subarray of
