@@ -119,6 +119,7 @@ class UNICODE : AllStatic {
   // in resource area unless a buffer is provided. The unicode 'length'
   // parameter is set to the length of the result utf8 string.
   template<typename T> static char* as_utf8(const T* base, int& length);
+  template<typename T> static char* as_utf8(Thread* current, const T* base, int& length);
   static char* as_utf8(const jchar* base, int length, char* buf, int buflen);
   static char* as_utf8(const jbyte* base, int length, char* buf, int buflen);
 

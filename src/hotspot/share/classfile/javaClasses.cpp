@@ -621,10 +621,19 @@ int java_lang_String::utf8_length(oop java_string) {
 
 char* java_lang_String::as_utf8_string(oop java_string) {
   int length;
-  return as_utf8_string(java_string, length);
+  return as_utf8_string(Thread::current(), java_string, length);
 }
 
 char* java_lang_String::as_utf8_string(oop java_string, int& length) {
+  return as_utf8_string(Thread::current(), java_string, length);
+}
+
+char* java_lang_String::as_utf8_string(Thread* current, oop java_string) {
+  int length;
+  return as_utf8_string(current, java_string, length);
+}
+
+char* java_lang_String::as_utf8_string(Thread* current, oop java_string, int& length) {
   typeArrayOop value = java_lang_String::value(java_string);
   length             = java_lang_String::length(java_string, value);
   bool     is_latin1 = java_lang_String::is_latin1(java_string);

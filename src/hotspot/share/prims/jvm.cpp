@@ -1069,7 +1069,7 @@ JVM_ENTRY(jclass, JVM_FindLoadedClass(JNIEnv *env, jobject loader, jstring name)
   ResourceMark rm(THREAD);
 
   Handle h_name (THREAD, JNIHandles::resolve_non_null(name));
-  char* str = java_lang_String::as_utf8_string(h_name());
+  char* str = java_lang_String::as_utf8_string(THREAD, h_name());
 
   // Sanity check, don't expect null
   if (str == nullptr) return nullptr;
@@ -3219,7 +3219,7 @@ JVM_END
 JVM_ENTRY(jstring, JVM_GetSystemPackage(JNIEnv *env, jstring name))
   ResourceMark rm(THREAD);
   JvmtiVMObjectAllocEventCollector oam;
-  char* str = java_lang_String::as_utf8_string(JNIHandles::resolve_non_null(name));
+  char* str = java_lang_String::as_utf8_string(THREAD, JNIHandles::resolve_non_null(name));
   oop result = ClassLoader::get_system_package(str, CHECK_NULL);
 return (jstring) JNIHandles::make_local(THREAD, result);
 JVM_END
@@ -3729,7 +3729,7 @@ JVM_ENTRY(void, JVM_LogLambdaFormInvoker(JNIEnv *env, jstring line))
   if (line != nullptr) {
     ResourceMark rm(THREAD);
     Handle h_line (THREAD, JNIHandles::resolve_non_null(line));
-    char* c_line = java_lang_String::as_utf8_string(h_line());
+    char* c_line = java_lang_String::as_utf8_string(THREAD, h_line());
     if (DynamicDumpSharedSpaces) {
       // Note: LambdaFormInvokers::append take same format which is not
       // same as below the print format. The line does not include LAMBDA_FORM_TAG.
@@ -3747,7 +3747,7 @@ JVM_ENTRY(void, JVM_DumpClassListToFile(JNIEnv *env, jstring listFileName))
 #if INCLUDE_CDS
   ResourceMark rm(THREAD);
   Handle file_handle(THREAD, JNIHandles::resolve_non_null(listFileName));
-  char* file_name  = java_lang_String::as_utf8_string(file_handle());
+  char* file_name  = java_lang_String::as_utf8_string(THREAD, file_handle());
   MetaspaceShared::dump_loaded_classes(file_name, THREAD);
 #endif // INCLUDE_CDS
 JVM_END
@@ -3756,7 +3756,7 @@ JVM_ENTRY(void, JVM_DumpDynamicArchive(JNIEnv *env, jstring archiveName))
 #if INCLUDE_CDS
   ResourceMark rm(THREAD);
   Handle file_handle(THREAD, JNIHandles::resolve_non_null(archiveName));
-  char* archive_name  = java_lang_String::as_utf8_string(file_handle());
+  char* archive_name  = java_lang_String::as_utf8_string(THREAD, file_handle());
   DynamicArchive::dump_for_jcmd(archive_name, CHECK);
 #endif // INCLUDE_CDS
 JVM_END

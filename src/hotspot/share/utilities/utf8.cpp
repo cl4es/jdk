@@ -441,8 +441,13 @@ int UNICODE::utf8_length(const T* base, int length) {
 
 template<typename T>
 char* UNICODE::as_utf8(const T* base, int& length) {
+  return as_utf8(Thread::current(), base, length);
+}
+
+template<typename T>
+char* UNICODE::as_utf8(Thread* current, const T* base, int& length) {
   int utf8_len = utf8_length(base, length);
-  u_char* buf = NEW_RESOURCE_ARRAY(u_char, utf8_len + 1);
+  u_char* buf = NEW_RESOURCE_ARRAY_IN_THREAD(current, u_char, utf8_len + 1);
   char* result = as_utf8(base, length, (char*) buf, utf8_len + 1);
   assert((int) strlen(result) == utf8_len, "length prediction must be correct");
   // Set string length to uft8 length
