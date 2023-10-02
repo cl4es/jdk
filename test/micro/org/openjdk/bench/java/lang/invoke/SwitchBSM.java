@@ -28,10 +28,15 @@ import java.lang.invoke.MethodType;
 import java.util.Arrays;
 import java.util.List;
 import org.openjdk.jmh.annotations.Benchmark;
+import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;
+import org.openjdk.jmh.annotations.Measurement;
+import org.openjdk.jmh.annotations.Mode;
+import org.openjdk.jmh.annotations.OutputTimeUnit;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
+import org.openjdk.jmh.annotations.Warmup;
 import org.openjdk.jmh.infra.Blackhole;
 import org.openjdk.jmh.runner.Runner;
 import org.openjdk.jmh.runner.RunnerException;
@@ -52,12 +57,50 @@ public class SwitchBSM {
     private MethodHandle handleMethodHandleCascade100;
     private MethodHandle handleIfElseCascade100;
     private MethodHandle handleConditionalCascade100;
+    private MethodHandle handleLoop100;
+    private MethodHandle handleLoopList100;
 
-    @Benchmark
+    //    @Benchmark
     public void testMethodHandles100(Blackhole b) throws Throwable {
         for (Object v : data100) {
             b.consume((int) handleMethodHandleCascade100.invokeExact(v));
         }
+    }
+
+    @Benchmark
+    public void testLoop100(Blackhole b) throws Throwable {
+        for (Object v : data100) {
+            b.consume((int) handleLoop100.invokeExact(v));
+        }
+    }
+
+    @Benchmark
+    public void testLoopList100(Blackhole b) throws Throwable {
+        for (Object v : data100) {
+            b.consume((int) handleLoopList100.invokeExact(v));
+        }
+    }
+
+    private static int categorizeByLoop(Object v, Class<?>[] labels) {
+        int len = labels.length;
+        for (int i = 0; i < labels.length; i++) {
+            Class<?> label = labels[i];
+            if (label.isInstance(v)) {
+                return i;
+            }
+        }
+        return len;
+    }
+
+    private static int categorizeByLoopList(Object v, List<Class<?>> labels) {
+        int len = labels.size();
+        for (int i = 0; i < len; i++) {
+            Class<?> label = labels.get(i);
+            if (label.isInstance(v)) {
+                return i;
+            }
+        }
+        return len;
     }
 
     //    @Benchmark
@@ -74,7 +117,7 @@ public class SwitchBSM {
         }
     }
 
-    @Benchmark
+    //    @Benchmark
     public void testMethodHandles40(Blackhole b) throws Throwable {
         for (Object v : data40) {
             b.consume((int) handleMethodHandleCascade40.invokeExact(v));
@@ -88,7 +131,7 @@ public class SwitchBSM {
         }
     }
 
-    @Benchmark
+    //    @Benchmark
     public void testConditional40(Blackhole b) throws Throwable {
         for (Object v : data40) {
             b.consume((int) handleConditionalCascade40.invokeExact(v));
@@ -582,6 +625,11 @@ public class SwitchBSM {
                 MethodType.methodType(int.class, Object.class));
         handleConditionalCascade100 = LOOKUP.findStatic(SwitchBSM.class, "doConditionalCascade100",
                 MethodType.methodType(int.class, Object.class));
+        handleLoop100 = MethodHandles.insertArguments(LOOKUP.findStatic(SwitchBSM.class, "categorizeByLoop",
+                MethodType.methodType(int.class, Object.class, Class[].class)), 1, (Object) labels100);
+
+        handleLoopList100 = MethodHandles.insertArguments(LOOKUP.findStatic(SwitchBSM.class, "categorizeByLoopList",
+                MethodType.methodType(int.class, Object.class, List.class)), 1, (Object) List.of(labels100));
     }
 
     private static MethodHandle generateMethodHandleCascade(Class<?>[] labels) {
