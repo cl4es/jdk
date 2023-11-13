@@ -205,20 +205,20 @@ final class StringUTF16 {
      * @param count count of chars to be compressed, {@code count} > 0
      */
     @ForceInline
-    public static byte[] compress(final char[] val, final int off, final int count) {
+    public static String.Proto compress(final char[] val, final int off, final int count) {
         byte[] latin1 = new byte[count];
         int ndx = compress(val, off, latin1, 0, count);
-        if (ndx != count) {
+        if (ndx >= 0 && ndx < count) {
             // Switch to UTF16
             byte[] utf16 = toBytes(val, off, count);
             // If the original character that was found to be non-latin1 is latin1 in the copy
             // try to make a latin1 string from the copy
             if (getChar(utf16, ndx) > 0xff
                     || compress(utf16, 0, latin1, 0, count) != count) {
-                return utf16;
+                return new String.Proto(utf16, UTF16);
             }
         }
-        return latin1;     // latin1 success
+        return new String.Proto(latin1, LATIN1);
     }
 
     /**
@@ -232,7 +232,7 @@ final class StringUTF16 {
      * @param off   starting offset
      * @param count count of chars to be compressed, {@code count} > 0
      */
-    public static byte[] compress(final byte[] val, final int off, final int count) {
+    public static String.Proto compress(final byte[] val, final int off, final int count) {
         byte[] latin1 = new byte[count];
         int ndx = compress(val, off, latin1, 0, count);
         if (ndx != count) {// Switch to UTF16
@@ -241,10 +241,10 @@ final class StringUTF16 {
             // try to make a latin1 string from the copy
             if (getChar(utf16, ndx) > 0xff
                     || compress(utf16, 0, latin1, 0, count) != count) {
-                return utf16;
+                return new String.Proto(utf16, UTF16);
             }
         }
-        return latin1;     // latin1 success
+        return new String.Proto(latin1, LATIN1);
     }
 
     /**
@@ -265,8 +265,9 @@ final class StringUTF16 {
      * @param val   an int array of code points
      * @param off   starting offset
      * @param count length of code points to be compressed, length > 0
+     * @return a String.Proto containing the byte[] and the coder
      */
-    public static byte[] compress(final int[] val, int off, final int count) {
+    public static String.Proto compress(final int[] val, int off, final int count) {
         // Optimistically copy all latin1 code points to the destination
         byte[] latin1 = new byte[count];
         final int end = off + count;
@@ -301,13 +302,13 @@ final class StringUTF16 {
                     // Try to make a latin1 string from the copy
                     if (getChar(utf16, ndx) <= 0xff &&
                             compress(utf16, 0, latin1, 0, count) == count) {
-                        return latin1;     // latin1 success
+                        return new String.Proto(latin1, LATIN1);
                     }
                 }
-                return utf16;
+                return new String.Proto(utf16, UTF16);
             }
         }
-        return latin1;     // Latin1 success
+        return new String.Proto(latin1, LATIN1);
     }
 
     // Extract code points into chars in the byte array
@@ -834,9 +835,7 @@ final class StringUTF16 {
             if (String.COMPACT_STRINGS &&
                 !StringLatin1.canEncode(oldChar) &&
                 StringLatin1.canEncode(newChar)) {
-                byte[] res = StringUTF16.compress(buf, 0, len);
-                byte coder = (res.length == len) ? LATIN1 : UTF16;
-                return new String(res, coder);
+                return new String(StringUTF16.compress(buf, 0, len));
             }
             return new String(buf, UTF16);
         }
@@ -951,9 +950,7 @@ final class StringUTF16 {
 
         if (String.COMPACT_STRINGS && replLat1 && !targLat1) {
             // combination 6
-            byte[] res = StringUTF16.compress(result, 0, resultLen);
-            byte coder = (res.length == resultLen) ? LATIN1 : UTF16;
-            return new String(res, coder);    // combination 6
+            return new String(StringUTF16.compress(result, 0, resultLen));
         }
         return new String(result, UTF16);
     }
@@ -1347,9 +1344,7 @@ final class StringUTF16 {
             return "";
         }
         if (String.COMPACT_STRINGS) {
-            byte[] res = StringUTF16.compress(val, index, len);
-            byte coder = (res.length == len) ? LATIN1 : UTF16;
-            return new String(res, coder);
+            return new String(StringUTF16.compress(val, index, len));
         }
         int last = index + len;
         return new String(Arrays.copyOfRange(val, index << 1, last << 1), UTF16);

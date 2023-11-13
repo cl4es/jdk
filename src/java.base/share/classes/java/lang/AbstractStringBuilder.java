@@ -1687,8 +1687,9 @@ abstract sealed class AbstractStringBuilder implements Appendable, CharSequence
     /* for readObject() */
     void initBytes(char[] value, int off, int len) {
         if (String.COMPACT_STRINGS) {
-            this.value = StringUTF16.compress(value, off, len);
-            this.coder = (this.value.length == len) ? LATIN1 : UTF16;
+            String.Proto proto = StringUTF16.compress(value, off, len);
+            this.coder = proto.coder();
+            this.value = proto.value();
             return;
         }
         this.coder = UTF16;

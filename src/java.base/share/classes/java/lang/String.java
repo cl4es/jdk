@@ -228,6 +228,9 @@ public final class String
         COMPACT_STRINGS = true;
     }
 
+    // Proto holder for string field values to pass to String constructor.
+    record Proto(byte[] value, byte coder) {}
+
     /**
      * Class String is special cased within the Serialization Stream Protocol.
      *
@@ -355,9 +358,9 @@ public final class String
             return;
         }
         if (COMPACT_STRINGS) {
-            byte[] val = StringUTF16.compress(codePoints, offset, count);
-            this.coder = (val.length == count) ? LATIN1 : UTF16;
-            this.value = val;
+            Proto proto = StringUTF16.compress(codePoints, offset, count);
+            this.coder = proto.coder();
+            this.value = proto.value();
             return;
         }
         this.coder = UTF16;
@@ -670,8 +673,9 @@ public final class String
                 char[] ca = new char[en];
                 int clen = ad.decode(bytes, offset, length, ca);
                 if (COMPACT_STRINGS) {
-                    this.value = StringUTF16.compress(ca, 0, clen);
-                    this.coder = (this.value.length == clen) ? LATIN1 : UTF16;
+                    String.Proto proto = StringUTF16.compress(ca, 0, clen);
+                    this.coder = proto.coder();
+                    this.value = proto.value();
                     return;
                 }
                 coder = UTF16;
@@ -698,8 +702,9 @@ public final class String
                 throw new Error(x);
             }
             if (COMPACT_STRINGS) {
-                this.value = StringUTF16.compress(ca, 0, caLen);
-                this.coder = (this.value.length == caLen) ? LATIN1 : UTF16;
+                String.Proto proto = StringUTF16.compress(ca, 0, caLen);
+                this.coder = proto.coder();
+                this.value = proto.value();
                 return;
             }
             coder = UTF16;
@@ -838,9 +843,7 @@ public final class String
             throw new IllegalArgumentException(x);
         }
         if (COMPACT_STRINGS) {
-            byte[] value = StringUTF16.compress(ca, 0, caLen);
-            int coder = (value.length == len) ? LATIN1 : UTF16;
-            return new String(value, coder);
+            return new String(StringUTF16.compress(ca, 0, caLen));
         }
         return new String(StringUTF16.toBytes(ca, 0, caLen), UTF16);
     }
@@ -4814,9 +4817,9 @@ public final class String
             return;
         }
         if (COMPACT_STRINGS) {
-            byte[] val = StringUTF16.compress(value, off, len);
-            this.coder = (val.length == len) ? LATIN1 : UTF16;
-            this.value = val;
+            String.Proto proto = StringUTF16.compress(value, off, len);
+            this.coder = proto.coder();
+            this.value = proto.value();
             return;
         }
         this.coder = UTF16;
@@ -4839,13 +4842,23 @@ public final class String
         } else {
             // only try to compress val if some characters were deleted.
             if (COMPACT_STRINGS && asb.maybeLatin1) {
-                this.value = StringUTF16.compress(val, 0, length);
-                this.coder = (this.value.length == length) ? LATIN1 : UTF16;
+                String.Proto proto = StringUTF16.compress(val, 0, length);
+                this.coder = proto.coder();
+                this.value = proto.value();
                 return;
             }
             this.coder = UTF16;
             this.value = Arrays.copyOfRange(val, 0, length << 1);
         }
+    }
+
+    /**
+     * Returns a string created from Proto(value, coder).
+     * @param proto a prototype string
+     */
+    String(String.Proto proto) {
+        this.coder = proto.coder();
+        this.value = proto.value();
     }
 
    /*
