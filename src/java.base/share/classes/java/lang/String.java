@@ -229,7 +229,22 @@ public final class String
     }
 
     // Proto holder for string field values to pass to String constructor.
-    record Proto(byte[] value, byte coder) {}
+    // Could be "record Proto(byte[] value, byte coder)" but desugared to
+    // ease backporting.
+    static final class Proto {
+        private final byte[] value;
+        private final byte coder;
+        Proto(byte[] value, byte coder) {
+            this.value = value;
+            this.coder = coder;
+        }
+        byte[] value() {
+            return value;
+        }
+        byte coder() {
+            return coder;
+        }
+    }
 
     /**
      * Class String is special cased within the Serialization Stream Protocol.
