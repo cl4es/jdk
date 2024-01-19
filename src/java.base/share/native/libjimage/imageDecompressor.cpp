@@ -135,45 +135,44 @@ u4 ImageDecompressor::getU4(u1* ptr, Endian *endian) {
  */
 void ImageDecompressor::decompress_resource(u1* compressed, u1* uncompressed,
                 u8 uncompressed_size, const ImageStrings* strings, Endian *endian) {
-    bool has_header = false;
     u1* decompressed_resource = compressed;
     u1* compressed_resource = compressed;
     // Resource could have been transformed by a stack of decompressors.
     // Iterate and decompress resources until there is no more header.
-    do {
+    while (true) {
         ResourceHeader _header;
         u1* compressed_resource_base = compressed_resource;
-        _header._magic = getU4(compressed_resource, endian);
+        if (getU4(compressed_resource, endian) != ResourceHeader::resource_header_magic) {
+            break;
+        }
         compressed_resource += 4;
         _header._size = getU8(compressed_resource, endian);
         compressed_resource += 8;
         _header._uncompressed_size = getU8(compressed_resource, endian);
         compressed_resource += 8;
         _header._decompressor_name_offset = getU4(compressed_resource, endian);
-        compressed_resource += 4;
-        _header._decompressor_config_offset = getU4(compressed_resource, endian);
-        compressed_resource += 4;
+        compressed_resource += 8; // skip unused 4-byte _decompressor_config_offset field
         _header._is_terminal = *compressed_resource;
         compressed_resource += 1;
-        has_header = _header._magic == ResourceHeader::resource_header_magic;
-        if (has_header) {
-            // decompressed_resource array contains the result of decompression
-            decompressed_resource = new u1[(size_t) _header._uncompressed_size];
-            // Retrieve the decompressor name
-            const char* decompressor_name = strings->get(_header._decompressor_name_offset);
-            assert(decompressor_name && "image decompressor not found");
-            // Retrieve the decompressor instance
-            ImageDecompressor* decompressor = get_decompressor(decompressor_name);
-            assert(decompressor && "image decompressor not found");
-            // Ask the decompressor to decompress the compressed content
-            decompressor->decompress_resource(compressed_resource, decompressed_resource,
-                &_header, strings);
-            if (compressed_resource_base != compressed) {
-                delete[] compressed_resource_base;
-            }
-            compressed_resource = decompressed_resource;
+        // decompressed_resource array contains the result of decompression
+        decompressed_resource = new u1[(size_t) _header._uncompressed_size];
+        // Retrieve the decompressor name
+        const char* decompressor_name = strings->get(_header._decompressor_name_offset);
+        assert(decompressor_name && "image decompressor not found");
+        // Retrieve the decompressor instance
+        ImageDecompressor* decompressor = get_decompressor(decompressor_name);
+        assert(decompressor && "image decompressor not found");
+        // Ask the decompressor to decompress the compressed content
+        decompressor->decompress_resource(compressed_resource, decompressed_resource,
+            &_header, strings);
+        if (_header._is_terminal) {
+                break;
         }
-    } while (has_header);
+        if (compressed_resource_base != compressed) {
+            delete[] compressed_resource_base;
+        }
+        compressed_resource = decompressed_resource;
+    }
     memcpy(uncompressed, decompressed_resource, (size_t) uncompressed_size);
     delete[] decompressed_resource;
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2024, Oracle and/or its affiliates. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -56,11 +56,11 @@
 struct ResourceHeader {
     /* magic bytes that identifies a compressed resource header*/
     static const u4 resource_header_magic = 0xCAFEFAFA;
-    u4 _magic; // Resource header
+    // u4 _magic; // Resource header
     u8 _size;    // Resource size
     u8 _uncompressed_size;  // Expected uncompressed size
     u4 _decompressor_name_offset;    // Strings table decompressor offset
-    u4 _decompressor_config_offset; // Strings table config offset
+    // u4 _decompressor_config_offset; // Strings table config offset. Unused.
     u1 _is_terminal; // Last decompressor 1, otherwise 0.
 };
 
