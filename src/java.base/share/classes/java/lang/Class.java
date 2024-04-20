@@ -3423,6 +3423,14 @@ public final class Class<T> implements java.io.Serializable,
     // Reflection data caches various derived names and reflective members. Cached
     // values may be invalidated when JVM TI RedefineClasses() is called
     private static class ReflectionData<T> {
+
+        private static final ClassValue<String> descriptors = new ClassValue<>() {
+            @Override
+            protected String computeValue(java.lang.Class<?> type) {
+                return type.descriptorStringImpl();
+            }
+        };
+
         volatile Field[] declaredFields;
         volatile Field[] publicFields;
         volatile Method[] declaredMethods;
@@ -4635,6 +4643,10 @@ public final class Class<T> implements java.io.Serializable,
      */
     @Override
     public String descriptorString() {
+        return ReflectionData.descriptors.get(this);
+    }
+
+    private String descriptorStringImpl() {
         if (isPrimitive())
             return Wrapper.forPrimitiveType(this).basicTypeString();
 
