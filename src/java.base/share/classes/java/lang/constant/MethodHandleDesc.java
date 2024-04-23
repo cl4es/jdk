@@ -120,11 +120,6 @@ public sealed interface MethodHandleDesc
                                            String name,
                                            MethodTypeDesc lookupMethodType) {
         switch (kind) {
-            case GETTER:
-            case SETTER:
-            case STATIC_GETTER:
-            case STATIC_SETTER:
-                throw new IllegalArgumentException(kind.toString());
             case VIRTUAL:
             case SPECIAL:
             case INTERFACE_VIRTUAL:
@@ -133,6 +128,10 @@ public sealed interface MethodHandleDesc
             case STATIC:
             case CONSTRUCTOR:
                 return new DirectMethodHandleDescImpl(kind, owner, name, lookupMethodType);
+            case GETTER:
+            case SETTER:
+            case STATIC_GETTER:
+            case STATIC_SETTER:
             default:
                 throw new IllegalArgumentException(kind.toString());
         }
