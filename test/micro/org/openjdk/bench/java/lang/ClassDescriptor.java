@@ -35,6 +35,7 @@ import org.openjdk.jmh.annotations.Warmup;
 import org.openjdk.jmh.infra.Blackhole;
 
 import java.util.concurrent.TimeUnit;
+import java.lang.constant.ClassDesc;
 
 /**
  * Tests java.lang.Class.descriptorString() with various inputs.
@@ -54,6 +55,11 @@ public class ClassDescriptor {
         bh.consume(C.class.descriptorString());
         bh.consume(String.class.descriptorString());
         bh.consume(Object.class.descriptorString());
+    }
+
+    @Benchmark
+    public ClassDesc ofDescriptorPrimitive() {
+        return ClassDesc.ofDescriptor("I");
     }
 
     static class A {}
