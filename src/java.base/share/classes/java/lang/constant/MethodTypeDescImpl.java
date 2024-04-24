@@ -57,8 +57,8 @@ final class MethodTypeDescImpl implements MethodTypeDesc {
      * @param validatedArgTypes {@link ClassDesc}s describing the trusted and validated parameter types
      */
     private MethodTypeDescImpl(ClassDesc returnType, ClassDesc[] validatedArgTypes) {
-        this.returnType = requireNonNull(returnType);
-        this.argTypes = requireNonNull(validatedArgTypes);
+        this.returnType = returnType;
+        this.argTypes = validatedArgTypes;
     }
 
     /**
@@ -157,6 +157,7 @@ final class MethodTypeDescImpl implements MethodTypeDesc {
 
     @Override
     public MethodTypeDesc changeReturnType(ClassDesc returnType) {
+        requireNonNull(returnType);
         return new MethodTypeDescImpl(returnType, argTypes);
     }
 
