@@ -563,12 +563,18 @@ import static java.lang.invoke.MethodType.methodType;
         return cls.isHidden() ? ClassDesc.ofInternalName(cls.getName().replace('.', '/'))
                               : classDesc(cls);
     }
-
     static ClassDesc classDesc(Class<?> cls) {
-        return ClassDesc.ofDescriptor(cls.descriptorString());
+        return cls == Object.class ? CD_Object
+                : ClassDesc.ofDescriptor(cls.descriptorString());
     }
 
     static MethodTypeDesc methodDesc(MethodType mt) {
-        return MethodTypeDesc.ofDescriptor(mt.descriptorString());
+        ClassDesc returnDesc = classDesc(mt.returnType());
+        ClassDesc[] params = new ClassDesc[mt.parameterCount()];
+        int i = 0;
+        for (Class<?> param : mt.ptypes()) {
+            params[i++] = classDesc(param);
+        }
+        return MethodTypeDesc.of(returnDesc, params);
     }
 }

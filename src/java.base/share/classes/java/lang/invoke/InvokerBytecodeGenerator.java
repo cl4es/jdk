@@ -71,13 +71,13 @@ import static java.lang.invoke.MethodHandles.Lookup.IMPL_LOOKUP;
  */
 class InvokerBytecodeGenerator {
     /** Define class names for convenience. */
-    private static final ClassDesc CD_DMH     = ClassDesc.ofInternalName("java/lang/invoke/DirectMethodHandle");
-    private static final ClassDesc CD_MHI     = ClassDesc.ofInternalName("java/lang/invoke/MethodHandleImpl");
-    private static final ClassDesc CD_LF      = ClassDesc.ofInternalName("java/lang/invoke/LambdaForm");
-    private static final ClassDesc CD_LFN     = ClassDesc.ofInternalName("java/lang/invoke/LambdaForm$Name");
-    private static final ClassDesc CD_OBJARY  = CD_Object.arrayType();
+    private static final ClassDesc CD_DMH     = ClassDesc.ofDescriptor("Ljava/lang/invoke/DirectMethodHandle;");
+    private static final ClassDesc CD_MHI     = ClassDesc.ofDescriptor("Ljava/lang/invoke/MethodHandleImpl;");
+    private static final ClassDesc CD_LF      = ClassDesc.ofDescriptor("Ljava/lang/invoke/LambdaForm;");
+    private static final ClassDesc CD_LFN     = ClassDesc.ofDescriptor("Ljava/lang/invoke/LambdaForm$Name;");
+    private static final ClassDesc CD_OBJARY  = ClassDesc.ofDescriptor("[Ljava/lang/Object;");
 
-    private static final ClassDesc CD_LOOP_CLAUSES = ClassDesc.ofInternalName("java/lang/invoke/MethodHandleImpl$LoopClauses");
+    private static final ClassDesc CD_LOOP_CLAUSES = ClassDesc.ofDescriptor("Ljava/lang/invoke/MethodHandleImpl$LoopClauses;");
 
     private static final ClassDesc CD_MHARY2       = CD_MethodHandle.arrayType(2);
 
@@ -1722,6 +1722,12 @@ class InvokerBytecodeGenerator {
     }
 
     static MethodTypeDesc methodDesc(MethodType mt) {
-        return MethodTypeDesc.ofDescriptor(mt.descriptorString());
+        ClassDesc returnDesc = classDesc(mt.returnType());
+        ClassDesc[] params = new ClassDesc[mt.parameterCount()];
+        int i = 0;
+        for (Class<?> param : mt.ptypes()) {
+            params[i++] = classDesc(param);
+        }
+        return MethodTypeDesc.of(returnDesc, params);
     }
 }
