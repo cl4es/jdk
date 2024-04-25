@@ -159,7 +159,7 @@ public sealed interface ClassDesc
      */
     static ClassDesc ofDescriptor(String descriptor) {
         if (descriptor.length() == 1) {
-            return Wrapper.forBasicType(descriptor.charAt(0)).primitiveClassDescriptor();
+            return Wrapper.forPrimitiveType(descriptor.charAt(0)).primitiveClassDescriptor();
         }
         return new ReferenceClassDescImpl(descriptor);
     }
