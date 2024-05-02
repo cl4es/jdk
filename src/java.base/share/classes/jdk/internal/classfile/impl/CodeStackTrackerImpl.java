@@ -174,7 +174,7 @@ public final class CodeStackTrackerImpl implements CodeStackTracker {
         cb.with(el);
         switch (el) {
             case ArrayLoadInstruction i -> {
-                pop(2);push(i.typeKind());
+                pop(2);push(i.opcode().primaryTypeKind());
             }
             case ArrayStoreInstruction i ->
                 pop(3);

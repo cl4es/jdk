@@ -24,6 +24,7 @@
  */
 package jdk.internal.classfile.impl;
 
+import java.lang.classfile.CodeBuilder;
 import java.lang.constant.ConstantDesc;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -762,7 +763,7 @@ public abstract sealed class AbstractInstruction
 
     public abstract static sealed class UnboundInstruction extends AbstractInstruction {
 
-        UnboundInstruction(Opcode op) {
+        public UnboundInstruction(Opcode op) {
             super(op, op.sizeIfFixed());
         }
 
@@ -1209,19 +1210,6 @@ public abstract sealed class AbstractInstruction
             return String.format(FMT_NewMultiArray, this.opcode(), arrayType().asInternalName(), dimensions());
         }
 
-    }
-
-    public static final class UnboundArrayLoadInstruction
-            extends UnboundInstruction implements ArrayLoadInstruction {
-
-        public UnboundArrayLoadInstruction(Opcode op) {
-            super(op);
-        }
-
-        @Override
-        public TypeKind typeKind() {
-            return op.primaryTypeKind();
-        }
     }
 
     public static final class UnboundArrayStoreInstruction

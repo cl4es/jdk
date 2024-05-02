@@ -42,12 +42,13 @@ import jdk.internal.javac.PreviewFeature;
  * @since 22
  */
 @PreviewFeature(feature = PreviewFeature.Feature.CLASSFILE_API)
-public sealed interface ArrayLoadInstruction extends Instruction
-        permits AbstractInstruction.UnboundArrayLoadInstruction {
-    /**
-     * {@return the component type of the array}
-     */
-    TypeKind typeKind();
+public final class ArrayLoadInstruction implements Instruction {
+
+    private final Opcode op;
+
+    private ArrayLoadInstruction(Opcode op) {
+        this.op = op;
+    }
 
     /**
      * {@return an array load instruction}
@@ -57,8 +58,18 @@ public sealed interface ArrayLoadInstruction extends Instruction
      * @throws IllegalArgumentException if the opcode kind is not
      *         {@link Opcode.Kind#ARRAY_LOAD}.
      */
-    static ArrayLoadInstruction of(Opcode op) {
+    public static ArrayLoadInstruction of(Opcode op) {
         Util.checkKind(op, Opcode.Kind.ARRAY_LOAD);
-        return new AbstractInstruction.UnboundArrayLoadInstruction(op);
+        return new ArrayLoadInstruction(op);
+    }
+
+    @Override
+    public Opcode opcode() {
+        return op;
+    }
+
+    @Override
+    public int sizeInBytes() {
+        return op.sizeIfFixed();
     }
 }
