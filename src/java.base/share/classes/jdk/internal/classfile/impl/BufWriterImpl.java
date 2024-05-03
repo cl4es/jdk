@@ -25,6 +25,8 @@
 package jdk.internal.classfile.impl;
 
 
+import jdk.internal.util.ArraysSupport;
+
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.List;
@@ -93,17 +95,24 @@ public final class BufWriterImpl implements BufWriter {
 
     @Override
     public void writeU1(int x) {
-        writeIntBytes(1, x);
+        reserveSpace(1);
+        elems[offset++] = (byte) (x & 0xFF);
     }
 
     @Override
     public void writeU2(int x) {
-        writeIntBytes(2, x);
+        reserveSpace(2);
+        elems[offset++] = (byte) ((x >> 8) & 0xFF);
+        elems[offset++] = (byte) (x & 0xFF);
     }
 
     @Override
     public void writeInt(int x) {
-        writeIntBytes(4, x);
+        reserveSpace(4);
+        elems[offset++] = (byte) ((x >> 24) & 0xFF);
+        elems[offset++] = (byte) ((x >> 16) & 0xFF);
+        elems[offset++] = (byte) ((x >> 8) & 0xFF);
+        elems[offset++] = (byte) (x & 0xFF);
     }
 
     @Override
@@ -158,10 +167,9 @@ public final class BufWriterImpl implements BufWriter {
     @Override
     public void reserveSpace(int freeBytes) {
         if (offset + freeBytes > elems.length) {
-            int newsize = elems.length * 2;
-            while (offset + freeBytes > newsize) {
-                newsize *= 2;
-            }
+            int newsize = ArraysSupport.newLength(elems.length,
+                    offset + freeBytes - elems.length, /* minimum growth */
+                    elems.length >> 1 /* preferred growth */);
             elems = Arrays.copyOf(elems, newsize);
         }
     }
