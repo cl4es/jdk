@@ -25,8 +25,6 @@
 package jdk.internal.classfile.impl;
 
 
-import jdk.internal.util.ArraysSupport;
-
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.List;
