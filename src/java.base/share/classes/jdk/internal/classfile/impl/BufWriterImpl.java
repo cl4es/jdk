@@ -102,17 +102,19 @@ public final class BufWriterImpl implements BufWriter {
     @Override
     public void writeU2(int x) {
         reserveSpace(2);
-        elems[offset++] = (byte) ((x >> 8) & 0xFF);
-        elems[offset++] = (byte) (x & 0xFF);
+        elems[offset] = (byte) ((x >> 8) & 0xFF);
+        elems[offset + 1] = (byte) (x & 0xFF);
+        offset += 2;
     }
 
     @Override
     public void writeInt(int x) {
         reserveSpace(4);
-        elems[offset++] = (byte) ((x >> 24) & 0xFF);
-        elems[offset++] = (byte) ((x >> 16) & 0xFF);
-        elems[offset++] = (byte) ((x >> 8) & 0xFF);
-        elems[offset++] = (byte) (x & 0xFF);
+        elems[offset] = (byte) ((x >> 24) & 0xFF);
+        elems[offset + 1] = (byte) ((x >> 16) & 0xFF);
+        elems[offset + 2] = (byte) ((x >> 8) & 0xFF);
+        elems[offset + 3] = (byte) (x & 0xFF);
+        offset += 4;
     }
 
     @Override
@@ -152,7 +154,12 @@ public final class BufWriterImpl implements BufWriter {
     public void patchInt(int offset, int size, int value) {
         int prevOffset = this.offset;
         this.offset = offset;
-        writeIntBytes(size, value);
+        switch (size) {
+            case 1 -> writeU1(value);
+            case 2 -> writeU2(value);
+            case 4 -> writeInt(value);
+            default -> writeIntBytes(size, value);
+        }
         this.offset = prevOffset;
     }
 
@@ -167,9 +174,10 @@ public final class BufWriterImpl implements BufWriter {
     @Override
     public void reserveSpace(int freeBytes) {
         if (offset + freeBytes > elems.length) {
-            int newsize = ArraysSupport.newLength(elems.length,
-                    offset + freeBytes - elems.length, /* minimum growth */
-                    elems.length >> 1 /* preferred growth */);
+            int newsize = elems.length * 2;
+            while (offset + freeBytes > newsize) {
+                newsize *= 2;
+            }
             elems = Arrays.copyOf(elems, newsize);
         }
     }
