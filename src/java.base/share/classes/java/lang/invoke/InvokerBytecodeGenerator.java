@@ -25,6 +25,7 @@
 
 package java.lang.invoke;
 
+import jdk.internal.constant.ReferenceClassDescImpl;
 import sun.invoke.util.VerifyAccess;
 import sun.invoke.util.VerifyType;
 import sun.invoke.util.Wrapper;
@@ -67,15 +68,15 @@ import static java.lang.invoke.MethodHandles.Lookup.IMPL_LOOKUP;
  */
 class InvokerBytecodeGenerator {
     /** Define class names for convenience. */
-    private static final ClassDesc CD_DMH     = ClassDesc.ofDescriptor("Ljava/lang/invoke/DirectMethodHandle;");
-    private static final ClassDesc CD_MHI     = ClassDesc.ofDescriptor("Ljava/lang/invoke/MethodHandleImpl;");
-    private static final ClassDesc CD_LF      = ClassDesc.ofDescriptor("Ljava/lang/invoke/LambdaForm;");
-    private static final ClassDesc CD_LFN     = ClassDesc.ofDescriptor("Ljava/lang/invoke/LambdaForm$Name;");
-    private static final ClassDesc CD_OBJARY  = ClassDesc.ofDescriptor("[Ljava/lang/Object;");
+    private static final ClassDesc CD_DMH     = ReferenceClassDescImpl.ofTrusted("Ljava/lang/invoke/DirectMethodHandle;");
+    private static final ClassDesc CD_MHI     = ReferenceClassDescImpl.ofTrusted("Ljava/lang/invoke/MethodHandleImpl;");
+    private static final ClassDesc CD_LF      = ReferenceClassDescImpl.ofTrusted("Ljava/lang/invoke/LambdaForm;");
+    private static final ClassDesc CD_LFN     = ReferenceClassDescImpl.ofTrusted("Ljava/lang/invoke/LambdaForm$Name;");
+    private static final ClassDesc CD_OBJARY  = ReferenceClassDescImpl.ofTrusted("[Ljava/lang/Object;");
 
-    private static final ClassDesc CD_LOOP_CLAUSES = ClassDesc.ofDescriptor("Ljava/lang/invoke/MethodHandleImpl$LoopClauses;");
+    private static final ClassDesc CD_LOOP_CLAUSES = ReferenceClassDescImpl.ofTrusted("Ljava/lang/invoke/MethodHandleImpl$LoopClauses;");
 
-    private static final ClassDesc CD_MHARY2       = ClassDesc.ofDescriptor("[[Ljava/lang/invoke/MethodHandle;");
+    private static final ClassDesc CD_MHARY2       = ReferenceClassDescImpl.ofTrusted("[[Ljava/lang/invoke/MethodHandle;");
 
 
     private static final String CLASS_PREFIX = "java/lang/invoke/LambdaForm$";
@@ -548,11 +549,11 @@ class InvokerBytecodeGenerator {
         return true;
     }
 
-    static final Annotation DONTINLINE      = Annotation.of(ClassDesc.ofDescriptor("Ljdk/internal/vm/annotation/DontInline;"));
-    static final Annotation FORCEINLINE     = Annotation.of(ClassDesc.ofDescriptor("Ljdk/internal/vm/annotation/ForceInline;"));
-    static final Annotation HIDDEN          = Annotation.of(ClassDesc.ofDescriptor("Ljdk/internal/vm/annotation/Hidden;"));
-    static final Annotation INJECTEDPROFILE = Annotation.of(ClassDesc.ofDescriptor("Ljava/lang/invoke/InjectedProfile;"));
-    static final Annotation LF_COMPILED     = Annotation.of(ClassDesc.ofDescriptor("Ljava/lang/invoke/LambdaForm$Compiled;"));
+    static final Annotation DONTINLINE      = Annotation.of(ReferenceClassDescImpl.ofTrusted("Ljdk/internal/vm/annotation/DontInline;"));
+    static final Annotation FORCEINLINE     = Annotation.of(ReferenceClassDescImpl.ofTrusted("Ljdk/internal/vm/annotation/ForceInline;"));
+    static final Annotation HIDDEN          = Annotation.of(ReferenceClassDescImpl.ofTrusted("Ljdk/internal/vm/annotation/Hidden;"));
+    static final Annotation INJECTEDPROFILE = Annotation.of(ReferenceClassDescImpl.ofTrusted("Ljava/lang/invoke/InjectedProfile;"));
+    static final Annotation LF_COMPILED     = Annotation.of(ReferenceClassDescImpl.ofTrusted("Ljava/lang/invoke/LambdaForm$Compiled;"));
 
     /**
      * Generate an invoker method for the passed {@link LambdaForm}.
@@ -1690,11 +1691,20 @@ class InvokerBytecodeGenerator {
     }
 
     static ClassDesc classDesc(Class<?> cls) {
-//        assert(VerifyAccess.isTypeVisible(cls, Object.class)) : cls.getName();
-        return cls == MethodHandle.class ? CD_MethodHandle
-             : cls == DirectMethodHandle.class ? CD_DMH
-             : cls == Object.class ? CD_Object
-             : ClassDesc.ofDescriptor(cls.descriptorString());
+        if (cls == MethodHandle.class) {
+            return CD_MethodHandle;
+        } else if (cls == DirectMethodHandle.class) {
+            return CD_DMH;
+        } else if (cls == Object.class) {
+            return CD_Object;
+        }
+        if (cls.isHidden()) {
+            throw new IllegalArgumentException("Can't describe hidden classes");
+        }
+        String descriptor = cls.descriptorString();
+        return (descriptor.length() == 1)
+                ? Wrapper.forPrimitiveType(descriptor.charAt(0)).classDescriptor()
+                : ReferenceClassDescImpl.ofTrusted(descriptor);
     }
 
     static MethodTypeDesc methodDesc(MethodType mt) {

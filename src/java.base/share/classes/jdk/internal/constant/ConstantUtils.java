@@ -22,10 +22,14 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
-package java.lang.constant;
+package jdk.internal.constant;
 
 import sun.invoke.util.Wrapper;
 
+import java.lang.constant.ClassDesc;
+import java.lang.constant.Constable;
+import java.lang.constant.ConstantDesc;
+import java.lang.constant.ConstantDescs;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -35,12 +39,12 @@ import static java.util.Objects.requireNonNull;
 /**
  * Helper methods for the implementation of {@code java.lang.constant}.
  */
-class ConstantUtils {
+public final class ConstantUtils {
     /** an empty constant descriptor */
     public static final ConstantDesc[] EMPTY_CONSTANTDESC = new ConstantDesc[0];
-    static final ClassDesc[] EMPTY_CLASSDESC = new ClassDesc[0];
-    static final Constable[] EMPTY_CONSTABLE = new Constable[0];
-    static final int MAX_ARRAY_TYPE_DESC_DIMENSIONS = 255;
+    public static final ClassDesc[] EMPTY_CLASSDESC = new ClassDesc[0];
+    public static final Constable[] EMPTY_CONSTABLE = new Constable[0];
+    public static final int MAX_ARRAY_TYPE_DESC_DIMENSIONS = 255;
 
     private static final Set<String> pointyNames = Set.of(ConstantDescs.INIT_NAME, ConstantDescs.CLASS_INIT_NAME);
 
@@ -52,8 +56,8 @@ class ConstantUtils {
      * @return the class name passed if valid
      * @throws IllegalArgumentException if the class name is invalid
      */
-    static String validateBinaryClassName(String name) {
-        for (int i=0; i<name.length(); i++) {
+    public static String validateBinaryClassName(String name) {
+        for (int i = 0; i < name.length(); i++) {
             char ch = name.charAt(i);
             if (ch == ';' || ch == '[' || ch == '/')
                 throw new IllegalArgumentException("Invalid class name: " + name);
@@ -62,21 +66,21 @@ class ConstantUtils {
     }
 
     /**
-      * Validates the correctness of an internal class name.
-      * In particular checks for the presence of invalid characters in the name.
-      *
-      * @param name the class name
-      * @return the class name passed if valid
-      * @throws IllegalArgumentException if the class name is invalid
-      */
-     static String validateInternalClassName(String name) {
-         for (int i=0; i<name.length(); i++) {
-             char ch = name.charAt(i);
-             if (ch == ';' || ch == '[' || ch == '.')
-                 throw new IllegalArgumentException("Invalid class name: " + name);
-         }
-         return name;
-     }
+     * Validates the correctness of an internal class name.
+     * In particular checks for the presence of invalid characters in the name.
+     *
+     * @param name the class name
+     * @return the class name passed if valid
+     * @throws IllegalArgumentException if the class name is invalid
+     */
+    public static String validateInternalClassName(String name) {
+        for (int i = 0; i < name.length(); i++) {
+            char ch = name.charAt(i);
+            if (ch == ';' || ch == '[' || ch == '.')
+                throw new IllegalArgumentException("Invalid class name: " + name);
+        }
+        return name;
+    }
 
     /**
      * Validates the correctness of a binary package name.
@@ -160,31 +164,31 @@ class ConstantUtils {
         return name;
     }
 
-    static void validateClassOrInterface(ClassDesc classDesc) {
+    public static void validateClassOrInterface(ClassDesc classDesc) {
         if (!classDesc.isClassOrInterface())
             throw new IllegalArgumentException("not a class or interface type: " + classDesc);
     }
 
-    static int arrayDepth(String descriptorString) {
+    public static int arrayDepth(String descriptorString) {
         int depth = 0;
         while (descriptorString.charAt(depth) == '[')
             depth++;
         return depth;
     }
 
-    static String binaryToInternal(String name) {
+    public static String binaryToInternal(String name) {
         return name.replace('.', '/');
     }
 
-    static String internalToBinary(String name) {
+    public static String internalToBinary(String name) {
         return name.replace('/', '.');
     }
 
-    static String dropLastChar(String s) {
+    public static String dropLastChar(String s) {
         return s.substring(0, s.length() - 1);
     }
 
-    static String dropFirstAndLastChar(String s) {
+    public static String dropFirstAndLastChar(String s) {
         return s.substring(1, s.length() - 1);
     }
 
@@ -196,7 +200,7 @@ class ConstantUtils {
      * @return the list of types
      * @throws IllegalArgumentException if the descriptor string is not valid
      */
-    static List<ClassDesc> parseMethodDescriptor(String descriptor) {
+    public static List<ClassDesc> parseMethodDescriptor(String descriptor) {
         int cur = 0, end = descriptor.length();
         ArrayList<ClassDesc> ptypes = new ArrayList<>();
         ptypes.add(null); // placeholder for return type
@@ -227,7 +231,8 @@ class ConstantUtils {
         if (len == 1) {
             return Wrapper.forPrimitiveType(descriptor.charAt(start)).classDescriptor();
         }
-        return ClassDesc.ofDescriptor(descriptor.substring(start, start + len));
+        // Pre-verified in parseMethodDescriptor; avoid redundant verification
+        return ReferenceClassDescImpl.ofTrusted(descriptor.substring(start, start + len));
     }
 
     private static final char JVM_SIGNATURE_ARRAY = '[';

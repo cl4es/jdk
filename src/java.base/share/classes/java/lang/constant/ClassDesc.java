@@ -28,12 +28,11 @@ import java.lang.invoke.MethodHandles;
 import java.lang.invoke.TypeDescriptor;
 import java.util.stream.Stream;
 
+import jdk.internal.constant.PrimitiveClassDescImpl;
+import jdk.internal.constant.ReferenceClassDescImpl;
 import sun.invoke.util.Wrapper;
 
-import static java.lang.constant.ConstantUtils.binaryToInternal;
-import static java.lang.constant.ConstantUtils.dropLastChar;
-import static java.lang.constant.ConstantUtils.internalToBinary;
-import static java.lang.constant.ConstantUtils.validateMemberName;
+import static jdk.internal.constant.ConstantUtils.*;
 import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.joining;
 
@@ -77,7 +76,7 @@ public sealed interface ClassDesc
      * @see ClassDesc#ofInternalName(String)
      */
     static ClassDesc of(String name) {
-        ConstantUtils.validateBinaryClassName(requireNonNull(name));
+        validateBinaryClassName(requireNonNull(name));
         return ClassDesc.ofDescriptor("L" + binaryToInternal(name) + ";");
     }
 
@@ -103,7 +102,7 @@ public sealed interface ClassDesc
      * @since 20
      */
     static ClassDesc ofInternalName(String name) {
-        ConstantUtils.validateInternalClassName(requireNonNull(name));
+        validateInternalClassName(requireNonNull(name));
         return ClassDesc.ofDescriptor("L" + name + ";");
     }
 
@@ -122,7 +121,7 @@ public sealed interface ClassDesc
      * not in the correct format
      */
     static ClassDesc of(String packageName, String className) {
-        ConstantUtils.validateBinaryClassName(requireNonNull(packageName));
+        validateBinaryClassName(requireNonNull(packageName));
         if (packageName.isEmpty()) {
             return of(className);
         }
@@ -162,7 +161,7 @@ public sealed interface ClassDesc
         return (descriptor.length() == 1)
                ? Wrapper.forPrimitiveType(descriptor.charAt(0)).classDescriptor()
                // will throw IAE on descriptor.length == 0 or if array dimensions too long
-               : new ReferenceClassDescImpl(descriptor);
+               : ReferenceClassDescImpl.of(descriptor);
     }
 
     /**
@@ -175,11 +174,11 @@ public sealed interface ClassDesc
      * @jvms 4.4.1 The CONSTANT_Class_info Structure
      */
     default ClassDesc arrayType() {
-        int depth = ConstantUtils.arrayDepth(descriptorString());
-        if (depth >= ConstantUtils.MAX_ARRAY_TYPE_DESC_DIMENSIONS) {
+        int depth = arrayDepth(descriptorString());
+        if (depth >= MAX_ARRAY_TYPE_DESC_DIMENSIONS) {
             throw new IllegalStateException(
                     "Cannot create an array type descriptor with more than " +
-                    ConstantUtils.MAX_ARRAY_TYPE_DESC_DIMENSIONS + " dimensions");
+                    MAX_ARRAY_TYPE_DESC_DIMENSIONS + " dimensions");
         }
         return arrayType(1);
     }
@@ -201,17 +200,17 @@ public sealed interface ClassDesc
             throw new IllegalArgumentException("rank " + rank + " is not a positive value");
         }
         try {
-            int currentDepth = ConstantUtils.arrayDepth(descriptorString());
+            int currentDepth = arrayDepth(descriptorString());
             netRank = Math.addExact(currentDepth, rank);
-            if (netRank > ConstantUtils.MAX_ARRAY_TYPE_DESC_DIMENSIONS) {
+            if (netRank > MAX_ARRAY_TYPE_DESC_DIMENSIONS) {
                 throw new IllegalArgumentException("rank: " + netRank +
                                                    " exceeds maximum supported dimension of " +
-                                                   ConstantUtils.MAX_ARRAY_TYPE_DESC_DIMENSIONS);
+                                                   MAX_ARRAY_TYPE_DESC_DIMENSIONS);
             }
         } catch (ArithmeticException ae) {
             throw new IllegalArgumentException("Integer overflow in rank computation");
         }
-        return ClassDesc.ofDescriptor("[".repeat(rank) + descriptorString());
+        return ReferenceClassDescImpl.ofTrusted("[".repeat(rank) + descriptorString());
     }
 
     /**
@@ -235,7 +234,7 @@ public sealed interface ClassDesc
         validateMemberName(nestedName, false);
         if (!isClassOrInterface())
             throw new IllegalStateException("Outer class is not a class or interface type");
-        return ClassDesc.ofDescriptor(dropLastChar(descriptorString()) + "$" + nestedName + ";");
+        return ReferenceClassDescImpl.ofTrusted(dropLastChar(descriptorString()) + "$" + nestedName + ";");
     }
 
     /**
@@ -299,7 +298,15 @@ public sealed interface ClassDesc
      * if this descriptor does not describe an array type
      */
     default ClassDesc componentType() {
-        return isArray() ? ClassDesc.ofDescriptor(descriptorString().substring(1)) : null;
+        if (isArray()) {
+            String desc = descriptorString();
+            if (desc.length() == 2) {
+                return Wrapper.forBasicType(desc.charAt(1)).classDescriptor();
+            } else {
+                return ReferenceClassDescImpl.ofTrusted(desc.substring(1));
+            }
+        }
+        return null;
     }
 
     /**
@@ -312,7 +319,7 @@ public sealed interface ClassDesc
     default String packageName() {
         if (!isClassOrInterface())
             return "";
-        String className = internalToBinary(ConstantUtils.dropFirstAndLastChar(descriptorString()));
+        String className = internalToBinary(dropFirstAndLastChar(descriptorString()));
         int index = className.lastIndexOf('.');
         return (index == -1) ? "" : className.substring(0, index);
     }
@@ -336,7 +343,7 @@ public sealed interface ClassDesc
                                                 descriptorString().length() - 1);
         }
         else if (isArray()) {
-            int depth = ConstantUtils.arrayDepth(descriptorString());
+            int depth = arrayDepth(descriptorString());
             ClassDesc c = this;
             for (int i=0; i<depth; i++)
                 c = c.componentType();

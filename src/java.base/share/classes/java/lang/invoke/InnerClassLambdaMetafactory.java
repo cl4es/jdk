@@ -25,9 +25,11 @@
 
 package java.lang.invoke;
 
+import jdk.internal.constant.ReferenceClassDescImpl;
 import jdk.internal.misc.CDS;
 import jdk.internal.util.ClassFileDumper;
 import sun.invoke.util.VerifyAccess;
+import sun.invoke.util.Wrapper;
 import sun.security.action.GetBooleanAction;
 
 import java.io.Serializable;
@@ -565,7 +567,20 @@ import static java.lang.invoke.MethodType.methodType;
     }
 
     static ClassDesc classDesc(Class<?> cls) {
-        return ClassDesc.ofDescriptor(cls.descriptorString());
+        if (cls == MethodHandle.class) {
+            return CD_MethodHandle;
+        } else if (cls == MethodType.class) {
+            return CD_MethodType;
+        } else if (cls == Object.class) {
+            return CD_Object;
+        }
+        if (cls.isHidden()) {
+            throw new IllegalArgumentException("Can't describe hidden classes");
+        }
+        String descriptor = cls.descriptorString();
+        return (descriptor.length() == 1)
+                ? Wrapper.forPrimitiveType(descriptor.charAt(0)).classDescriptor()
+                : ReferenceClassDescImpl.ofTrusted(descriptor);
     }
 
     static MethodTypeDesc methodDesc(MethodType mt) {
