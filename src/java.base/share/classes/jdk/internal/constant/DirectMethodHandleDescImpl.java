@@ -65,7 +65,7 @@ public final class DirectMethodHandleDescImpl implements DirectMethodHandleDesc 
      * is not {@code void}
      * @jvms 4.2.2 Unqualified Names
      */
-    public DirectMethodHandleDescImpl(Kind kind, ClassDesc owner, String name, MethodTypeDesc type) {
+    public static DirectMethodHandleDescImpl of(Kind kind, ClassDesc owner, String name, MethodTypeDesc type) {
         if (kind == CONSTRUCTOR)
             name = "<init>";
 
@@ -82,14 +82,36 @@ public final class DirectMethodHandleDescImpl implements DirectMethodHandleDesc 
             case STATIC_SETTER -> validateFieldType(type, true, false);
         }
 
-        this.kind = kind;
-        this.owner = owner;
-        this.name = name;
-        this.invocationType = switch (kind) {
+        MethodTypeDesc invocationType = switch (kind) {
             case VIRTUAL, SPECIAL, INTERFACE_VIRTUAL, INTERFACE_SPECIAL -> type.insertParameterTypes(0, owner);
             case CONSTRUCTOR -> type.changeReturnType(owner);
             default -> type;
         };
+        return new DirectMethodHandleDescImpl(kind, owner, name, invocationType);
+    }
+
+    private DirectMethodHandleDescImpl(Kind kind, ClassDesc owner, String name, MethodTypeDesc invocationType) {
+        this.kind = kind;
+        this.owner = owner;
+        this.name = name;
+        this.invocationType = invocationType;
+    }
+
+    /**
+     * Constructs a {@linkplain DirectMethodHandleDescImpl} for a method or field
+     * from a pre-validated kind, owner, name, and invocationType
+     *
+     * @param kind the kind of the method handle
+     * @param owner the declaring class or interface for the method
+     * @param name the unqualified name of the method (ignored if {@code kind} is {@code CONSTRUCTOR})
+     * @param invocationType the lookup invocationType of the method
+     * @jvms 4.2.2 Unqualified Names
+     */
+    public static DirectMethodHandleDescImpl ofValidated(Kind kind, ClassDesc owner, String name, MethodTypeDesc invocationType) {
+        if (kind == CONSTRUCTOR)
+            name = "<init>";
+
+        return new DirectMethodHandleDescImpl(kind, owner, name, invocationType);
     }
 
     private static void validateFieldType(MethodTypeDesc type, boolean isSetter, boolean isVirtual) {
@@ -148,7 +170,6 @@ public final class DirectMethodHandleDescImpl implements DirectMethodHandleDesc 
                  STATIC_GETTER            -> invocationType.returnType().descriptorString();
             case SETTER                   -> invocationType.parameterType(1).descriptorString();
             case STATIC_SETTER            -> invocationType.parameterType(0).descriptorString();
-            default -> throw new IllegalStateException(kind.toString());
         };
     }
 
@@ -168,7 +189,6 @@ public final class DirectMethodHandleDescImpl implements DirectMethodHandleDesc 
             case STATIC_GETTER              -> lookup.findStaticGetter(resolvedOwner, name, invocationType.returnType());
             case SETTER                     -> lookup.findSetter(resolvedOwner, name, invocationType.parameterType(1));
             case STATIC_SETTER              -> lookup.findStaticSetter(resolvedOwner, name, invocationType.parameterType(0));
-            default -> throw new IllegalStateException(kind.name());
         };
     }
 

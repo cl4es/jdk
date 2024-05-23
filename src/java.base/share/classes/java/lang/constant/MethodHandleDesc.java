@@ -88,7 +88,7 @@ public sealed interface MethodHandleDesc
             case STATIC_SETTER:
                 return ofField(kind, owner, name, ClassDesc.ofDescriptor(lookupDescriptor));
             default:
-                return new DirectMethodHandleDescImpl(kind, owner, name, MethodTypeDesc.ofDescriptor(lookupDescriptor));
+                return DirectMethodHandleDescImpl.of(kind, owner, name, MethodTypeDesc.ofDescriptor(lookupDescriptor));
         }
     }
 
@@ -134,7 +134,7 @@ public sealed interface MethodHandleDesc
             case INTERFACE_STATIC:
             case STATIC:
             case CONSTRUCTOR:
-                return new DirectMethodHandleDescImpl(kind, owner, name, lookupMethodType);
+                return DirectMethodHandleDescImpl.of(kind, owner, name, lookupMethodType);
             default:
                 throw new IllegalArgumentException(kind.toString());
         }
@@ -166,7 +166,7 @@ public sealed interface MethodHandleDesc
             case STATIC_SETTER -> MethodTypeDesc.of(CD_void, fieldType);
             default -> throw new IllegalArgumentException(kind.toString());
         };
-        return new DirectMethodHandleDescImpl(kind, owner, fieldName, mtr);
+        return DirectMethodHandleDescImpl.of(kind, owner, fieldName, mtr);
     }
 
     /**

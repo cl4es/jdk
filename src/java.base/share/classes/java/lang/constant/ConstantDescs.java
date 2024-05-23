@@ -24,6 +24,8 @@
  */
 package java.lang.constant;
 
+import jdk.internal.constant.DirectMethodHandleDescImpl;
+import jdk.internal.constant.MethodTypeDescImpl;
 import jdk.internal.constant.PrimitiveClassDescImpl;
 import jdk.internal.constant.ReferenceClassDescImpl;
 
@@ -188,55 +190,56 @@ public final class ConstantDescs {
             CD_Class};
 
     /** {@link MethodHandleDesc} representing {@link ConstantBootstraps#primitiveClass(Lookup, String, Class) ConstantBootstraps.primitiveClass} */
-    public static final DirectMethodHandleDesc BSM_PRIMITIVE_CLASS
-            = ofConstantBootstrap(CD_ConstantBootstraps, "primitiveClass",
-            CD_Class);
+    public static final DirectMethodHandleDesc BSM_PRIMITIVE_CLASS =
+            DirectMethodHandleDescImpl.ofValidated(STATIC, CD_ConstantBootstraps, "primitiveClass",
+                    MethodTypeDescImpl.ofValidated(CD_Class, CONDY_BOOTSTRAP_ARGS));
 
     /** {@link MethodHandleDesc} representing {@link ConstantBootstraps#enumConstant(Lookup, String, Class) ConstantBootstraps.enumConstant} */
-    public static final DirectMethodHandleDesc BSM_ENUM_CONSTANT
-            = ofConstantBootstrap(CD_ConstantBootstraps, "enumConstant",
-            CD_Enum);
+    public static final DirectMethodHandleDesc BSM_ENUM_CONSTANT =
+            DirectMethodHandleDescImpl.ofValidated(STATIC, CD_ConstantBootstraps, "enumConstant",
+                    MethodTypeDescImpl.ofValidated(CD_Class, CONDY_BOOTSTRAP_ARGS));
 
     /**
      * {@link MethodHandleDesc} representing {@link ConstantBootstraps#getStaticFinal(Lookup, String, Class, Class) ConstantBootstraps.getStaticFinal}
      * @since 15
      */
-    public static final DirectMethodHandleDesc BSM_GET_STATIC_FINAL
-            = ofConstantBootstrap(CD_ConstantBootstraps, "getStaticFinal",
-            CD_Object, CD_Class);
+    public static final DirectMethodHandleDesc BSM_GET_STATIC_FINAL =
+            DirectMethodHandleDescImpl.ofValidated(STATIC, CD_ConstantBootstraps, "getStaticFinal",
+                    MethodTypeDescImpl.ofValidated(CD_Object, CD_MethodHandles_Lookup, CD_String, CD_Class, CD_Class));
 
     /** {@link MethodHandleDesc} representing {@link ConstantBootstraps#nullConstant(Lookup, String, Class) ConstantBootstraps.nullConstant} */
-    public static final DirectMethodHandleDesc BSM_NULL_CONSTANT
-            = ofConstantBootstrap(CD_ConstantBootstraps, "nullConstant",
-            CD_Object);
+    public static final DirectMethodHandleDesc BSM_NULL_CONSTANT =
+            DirectMethodHandleDescImpl.ofValidated(STATIC, CD_ConstantBootstraps, "nullConstant",
+                    MethodTypeDescImpl.ofValidated(CD_Object, CONDY_BOOTSTRAP_ARGS));
 
     /** {@link MethodHandleDesc} representing {@link ConstantBootstraps#fieldVarHandle(Lookup, String, Class, Class, Class) ConstantBootstraps.fieldVarHandle} */
-    public static final DirectMethodHandleDesc BSM_VARHANDLE_FIELD
-            = ofConstantBootstrap(CD_ConstantBootstraps, "fieldVarHandle",
-            CD_VarHandle, CD_Class, CD_Class);
+    public static final DirectMethodHandleDesc BSM_VARHANDLE_FIELD =
+            DirectMethodHandleDescImpl.ofValidated(STATIC, CD_ConstantBootstraps, "fieldVarHandle",
+                    MethodTypeDescImpl.ofValidated(CD_VarHandle, CD_MethodHandles_Lookup, CD_String, CD_Class, CD_Class, CD_Class));
 
     /** {@link MethodHandleDesc} representing {@link ConstantBootstraps#staticFieldVarHandle(Lookup, String, Class, Class, Class) ConstantBootstraps.staticFieldVarHandle} */
-    public static final DirectMethodHandleDesc BSM_VARHANDLE_STATIC_FIELD
-            = ofConstantBootstrap(CD_ConstantBootstraps, "staticFieldVarHandle",
-            CD_VarHandle, CD_Class, CD_Class);
+    public static final DirectMethodHandleDesc BSM_VARHANDLE_STATIC_FIELD =
+            DirectMethodHandleDescImpl.ofValidated(STATIC, CD_ConstantBootstraps, "staticFieldVarHandle",
+                    MethodTypeDescImpl.ofValidated(CD_VarHandle, CD_MethodHandles_Lookup, CD_String, CD_Class, CD_Class, CD_Class));
 
     /** {@link MethodHandleDesc} representing {@link ConstantBootstraps#arrayVarHandle(Lookup, String, Class, Class) ConstantBootstraps.arrayVarHandle} */
-    public static final DirectMethodHandleDesc BSM_VARHANDLE_ARRAY
-            = ofConstantBootstrap(CD_ConstantBootstraps, "arrayVarHandle",
-            CD_VarHandle, CD_Class);
+    public static final DirectMethodHandleDesc BSM_VARHANDLE_ARRAY =
+            DirectMethodHandleDescImpl.ofValidated(STATIC, CD_ConstantBootstraps, "arrayVarHandle",
+                    MethodTypeDescImpl.ofValidated(CD_VarHandle, CD_MethodHandles_Lookup, CD_String, CD_Class, CD_Class));
 
     /** {@link MethodHandleDesc} representing {@link ConstantBootstraps#invoke(Lookup, String, Class, MethodHandle, Object...) ConstantBootstraps.invoke} */
-    public static final DirectMethodHandleDesc BSM_INVOKE
-            = ofConstantBootstrap(CD_ConstantBootstraps, "invoke",
-            CD_Object, CD_MethodHandle, CD_Object.arrayType());
+    public static final DirectMethodHandleDesc BSM_INVOKE =
+            DirectMethodHandleDescImpl.ofValidated(STATIC, CD_ConstantBootstraps, "invoke",
+                    MethodTypeDescImpl.ofValidated(CD_Object, CD_MethodHandles_Lookup, CD_String, CD_Class, CD_MethodHandle,
+                                                   ReferenceClassDescImpl.ofValidated("[Ljava/lang/Object;")));
 
     /**
      * {@link MethodHandleDesc} representing {@link ConstantBootstraps#explicitCast(Lookup, String, Class, Object) ConstantBootstraps.explicitCast}
      * @since 15
      */
-    public static final DirectMethodHandleDesc BSM_EXPLICIT_CAST
-            = ofConstantBootstrap(CD_ConstantBootstraps, "explicitCast",
-            CD_Object, CD_Object);
+    public static final DirectMethodHandleDesc BSM_EXPLICIT_CAST =
+            DirectMethodHandleDescImpl.ofValidated(STATIC, CD_ConstantBootstraps, "explicitCast",
+                    MethodTypeDescImpl.ofValidated(CD_Object, CD_MethodHandles_Lookup, CD_String, CD_Object));
 
     /** {@link ClassDesc} representing the primitive type {@code int} */
     public static final ClassDesc CD_int = new PrimitiveClassDescImpl("I");
@@ -269,17 +272,17 @@ public final class ConstantDescs {
      * {@link MethodHandleDesc} representing {@link MethodHandles#classData(Lookup, String, Class) MethodHandles.classData}
      * @since 21
      */
-    public static final DirectMethodHandleDesc BSM_CLASS_DATA
-            = ofConstantBootstrap(CD_MethodHandles, "classData",
-            CD_Object);
+    public static final DirectMethodHandleDesc BSM_CLASS_DATA =
+            DirectMethodHandleDescImpl.ofValidated(STATIC, CD_MethodHandles, "classData",
+                    MethodTypeDescImpl.ofValidated(CD_Object, CONDY_BOOTSTRAP_ARGS));
 
     /**
      * {@link MethodHandleDesc} representing {@link MethodHandles#classDataAt(Lookup, String, Class, int) MethodHandles.classDataAt}
      * @since 21
      */
-    public static final DirectMethodHandleDesc BSM_CLASS_DATA_AT
-            = ofConstantBootstrap(CD_MethodHandles, "classDataAt",
-            CD_Object, CD_int);
+    public static final DirectMethodHandleDesc BSM_CLASS_DATA_AT =
+            DirectMethodHandleDescImpl.ofValidated(STATIC, CD_MethodHandles, "classDataAt",
+                    MethodTypeDescImpl.ofValidated(CD_Object, CD_MethodHandles_Lookup, CD_String, CD_Class, CD_int));
 
     /** Nominal descriptor representing the constant {@code null} */
     public static final ConstantDesc NULL
