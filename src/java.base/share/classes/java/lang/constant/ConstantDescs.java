@@ -377,7 +377,7 @@ public final class ConstantDescs {
         int prefixLen = CONDY_BOOTSTRAP_ARGS.length;
         ClassDesc[] fullParamTypes = new ClassDesc[paramTypes.length + prefixLen];
         System.arraycopy(CONDY_BOOTSTRAP_ARGS, 0, fullParamTypes, 0, prefixLen);
-        System.arraycopy(paramTypes, 0, fullParamTypes, 3, paramTypes.length);
+        System.arraycopy(paramTypes, 0, fullParamTypes, prefixLen, paramTypes.length);
         return MethodHandleDesc.ofMethod(STATIC, owner, name, MethodTypeDescImpl.ofTrusted(returnType, fullParamTypes));
     }
 }

@@ -1695,8 +1695,7 @@ public class MethodHandles {
          * @see <a href="#cross-module-lookup">Cross-module lookups</a>
          */
         public Lookup in(Class<?> requestedLookupClass) {
-            Objects.requireNonNull(requestedLookupClass);
-            if (requestedLookupClass.isPrimitive())
+            if (requestedLookupClass.isPrimitive()) // implicit null check
                 throw new IllegalArgumentException(requestedLookupClass + " is a primitive class");
             if (requestedLookupClass.isArray())
                 throw new IllegalArgumentException(requestedLookupClass + " is an array class");
