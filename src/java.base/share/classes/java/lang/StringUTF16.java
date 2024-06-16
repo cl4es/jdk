@@ -1547,7 +1547,7 @@ final class StringUTF16 {
         return true;
     }
 
-    static void putCharsAt(byte[] val, int index, int c1, int c2, int c3, int c4) {
+    static int putCharsAt(byte[] val, int index, int c1, int c2, int c3, int c4) {
         assert index >= 0 && index + 3 < length(val) : "Trusted caller missed bounds check";
         // Don't use the putChar method, Its instrinsic will cause C2 unable to combining values into larger stores.
         long address = Unsafe.ARRAY_BYTE_BASE_OFFSET + (index << 1);
@@ -1561,9 +1561,10 @@ final class StringUTF16 {
         UNSAFE.putByte(val, address + 5, (byte)(c3 >> LO_BYTE_SHIFT));
         UNSAFE.putByte(val, address + 6, (byte)(c4 >> HI_BYTE_SHIFT));
         UNSAFE.putByte(val, address + 7, (byte)(c4 >> LO_BYTE_SHIFT));
+        return index + 4;
     }
 
-    static void putCharsAt(byte[] val, int index, int c1, int c2, int c3, int c4, int c5) {
+    static int putCharsAt(byte[] val, int index, int c1, int c2, int c3, int c4, int c5) {
         assert index >= 0 && index + 4 < length(val) : "Trusted caller missed bounds check";
         // Don't use the putChar method, Its instrinsic will cause C2 unable to combining values into larger stores.
         long address  = Unsafe.ARRAY_BYTE_BASE_OFFSET + (index << 1);
@@ -1579,6 +1580,7 @@ final class StringUTF16 {
         UNSAFE.putByte(val, address + 7, (byte)(c4 >> LO_BYTE_SHIFT));
         UNSAFE.putByte(val, address + 8, (byte)(c5 >> HI_BYTE_SHIFT));
         UNSAFE.putByte(val, address + 9, (byte)(c5 >> LO_BYTE_SHIFT));
+        return index + 5;
     }
 
     public static char charAt(byte[] value, int index) {

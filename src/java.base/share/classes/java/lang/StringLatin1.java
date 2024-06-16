@@ -825,7 +825,7 @@ final class StringLatin1 {
         return StreamSupport.stream(LinesSpliterator.spliterator(value), false);
     }
 
-    static void putCharsAt(byte[] val, int index, int c1, int c2, int c3, int c4) {
+    static int putCharsAt(byte[] val, int index, int c1, int c2, int c3, int c4) {
         assert index >= 0 && index + 3 < length(val) : "Trusted caller missed bounds check";
         // Don't use the putChar method, Its instrinsic will cause C2 unable to combining values into larger stores.
         long address  = Unsafe.ARRAY_BYTE_BASE_OFFSET + index;
@@ -835,9 +835,10 @@ final class StringLatin1 {
         UNSAFE.putByte(val, address + 1, (byte)(c2));
         UNSAFE.putByte(val, address + 2, (byte)(c3));
         UNSAFE.putByte(val, address + 3, (byte)(c4));
+        return index + 4;
     }
 
-    static void putCharsAt(byte[] val, int index, int c1, int c2, int c3, int c4, int c5) {
+    static int putCharsAt(byte[] val, int index, int c1, int c2, int c3, int c4, int c5) {
         assert index >= 0 && index + 4 < length(val) : "Trusted caller missed bounds check";
         // Don't use the putChar method, Its instrinsic will cause C2 unable to combining values into larger stores.
         long address  = Unsafe.ARRAY_BYTE_BASE_OFFSET + index;
@@ -848,6 +849,7 @@ final class StringLatin1 {
         UNSAFE.putByte(val, address + 2, (byte)(c3));
         UNSAFE.putByte(val, address + 3, (byte)(c4));
         UNSAFE.putByte(val, address + 4, (byte)(c5));
+        return index + 5;
     }
 
     public static void putChar(byte[] val, int index, int c) {
