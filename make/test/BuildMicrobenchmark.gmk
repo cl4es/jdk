@@ -113,6 +113,7 @@ $(eval $(call SetupJavaCompilation, BUILD_JDK_MICROBENCHMARK, \
         --add-exports java.base/sun.security.util.math.intpoly=ALL-UNNAMED \
         --enable-preview \
         -XDsuppressNotes \
+        -XDstringConcat=inline \
         -processor org.openjdk.jmh.generators.BenchmarkProcessor, \
     JAVA_FLAGS := \
         --add-exports java.base/jdk.internal.vm=ALL-UNNAMED \
