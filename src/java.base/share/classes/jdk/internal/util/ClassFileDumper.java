@@ -77,7 +77,7 @@ public final class ClassFileDumper {
     private final String key;
     private final String dumpDir;
     private final boolean enabled;
-    private final AtomicInteger counter = new AtomicInteger();
+    private final AtomicInteger counter;
 
     private ClassFileDumper(String key, String path) {
         String value = GetPropertyAction.privilegedGetProperty(key);
@@ -88,6 +88,7 @@ public final class ClassFileDumper {
         }
         this.dumpDir = path;
         this.enabled = enabled;
+        this.counter = enabled ? new AtomicInteger() : null;
     }
 
     public String key() {
@@ -175,22 +176,26 @@ public final class ClassFileDumper {
         });
     }
 
-    private static final HexFormat HEX = HexFormat.of().withUpperCase();
-    private static final Set<Character> BAD_CHARS = Set.of('\\', ':', '*', '?', '"', '<', '>', '|');
-
     private static String encodeForFilename(String className) {
         int len = className.length();
         StringBuilder sb = new StringBuilder(len);
         for (int i = 0; i < len; i++) {
             char c = className.charAt(i);
-            // control characters
-            if (c <= 31 || BAD_CHARS.contains(c)) {
+            // special and control characters needs to be encoded
+            if (c <= 31 || badChar(c)) {
                 sb.append('%');
-                HEX.toHexDigits(sb, (byte)c);
+                HexFormat.of().withUpperCase().toHexDigits(sb, (byte)c);
             } else {
                 sb.append(c);
             }
         }
         return sb.toString();
+    }
+
+    private static boolean badChar(char c) {
+        return switch (c) {
+            case '\\', ':', '*', '?', '"', '<', '>', '|' -> true;
+            default -> false;
+        };
     }
 }
