@@ -48,8 +48,6 @@ import sun.nio.cs.UTF_8;
 
 public final class ParseUtil {
 
-    private static final HexFormat HEX_UPPERCASE = HexFormat.of().withUpperCase();
-
     private ParseUtil() {}
 
     /**
@@ -482,7 +480,7 @@ public final class ParseUtil {
 
     private static void appendEscape(StringBuilder sb, byte b) {
         sb.append('%');
-        HEX_UPPERCASE.toHexDigits(sb, b);
+        HexFormat.of().withUpperCase().toHexDigits(sb, b);
     }
 
     // Tell whether the given character is permitted by the given mask pair
