@@ -126,95 +126,145 @@ public final class StrikeCache {
         JAVA_FLOAT.withName("topLeftY"), // 20+4=24
         ADDRESS.withName("cellInfo"),    // 24+8=32
         ADDRESS.withName("image")        // 32+8=40
-     );
+    );
 
-   private static final long GLYPHIMAGESIZE = GlyphImageLayout.byteSize();
+    private static final long GLYPHIMAGESIZE = GlyphImageLayout.byteSize();
 
-   private static VarHandle getVarHandle(StructLayout struct, String name) {
+    private static VarHandle getVarHandle(StructLayout struct, String name) {
         VarHandle h = struct.varHandle(PathElement.groupElement(name));
         /* insert 0 offset so don't need to pass arg every time */
         return MethodHandles.insertCoordinates(h, 1, 0L).withInvokeExactBehavior();
     }
 
-    private static final VarHandle xAdvanceHandle = getVarHandle(GlyphImageLayout, "xAdvance");
-    private static final VarHandle yAdvanceHandle = getVarHandle(GlyphImageLayout, "yAdvance");
-    private static final VarHandle widthHandle    = getVarHandle(GlyphImageLayout, "width");
-    private static final VarHandle heightHandle   = getVarHandle(GlyphImageLayout, "height");
-    private static final VarHandle rowBytesHandle = getVarHandle(GlyphImageLayout, "rowBytes");
-    private static final VarHandle managedHandle  = getVarHandle(GlyphImageLayout, "managed");
-    private static final VarHandle topLeftXHandle = getVarHandle(GlyphImageLayout, "topLeftX");
-    private static final VarHandle topLeftYHandle = getVarHandle(GlyphImageLayout, "topLeftY");
-    private static final VarHandle cellInfoHandle = getVarHandle(GlyphImageLayout, "cellInfo");
-    private static final VarHandle imageHandle    = getVarHandle(GlyphImageLayout, "image");
+    private static VarHandle xAdvanceHandle() {
+        class Holder {
+            static final VarHandle xAdvanceHandle = getVarHandle(GlyphImageLayout, "xAdvance");
+        }
+        return Holder.xAdvanceHandle;
+    }
+    private static VarHandle yAdvanceHandle() {
+        class Holder {
+            static final VarHandle yAdvanceHandle = getVarHandle(GlyphImageLayout, "yAdvance");
+        }
+        return Holder.yAdvanceHandle;
+    }
+    private static VarHandle widthHandle() {
+        class Holder {
+            static final VarHandle widthHandle = getVarHandle(GlyphImageLayout, "width");
+        }
+        return Holder.widthHandle;
+    }
+    private static VarHandle heightHandle() {
+        class Holder {
+            static final VarHandle heightHandle = getVarHandle(GlyphImageLayout, "height");
+        }
+        return Holder.heightHandle;
+    }
+    private static VarHandle rowBytesHandle() {
+        class Holder {
+            static final VarHandle rowBytesHandle = getVarHandle(GlyphImageLayout, "rowBytes");
+        }
+        return Holder.rowBytesHandle;
+    }
+    private static VarHandle managedHandle() {
+        class Holder {
+            static final VarHandle managedHandle = getVarHandle(GlyphImageLayout, "managed");
+        }
+        return Holder.managedHandle;
+    }
+    private static VarHandle topLeftXHandle() {
+        class Holder {
+            static final VarHandle topLeftXHandle = getVarHandle(GlyphImageLayout, "topLeftX");
+        }
+        return Holder.topLeftXHandle;
+    }
+    private static VarHandle topLeftYHandle() {
+        class Holder {
+            static final VarHandle topLeftYHandle = getVarHandle(GlyphImageLayout, "topLeftY");
+        }
+        return Holder.topLeftYHandle;
+    }
+    private static VarHandle cellInfoHandle() {
+        class Holder {
+            static final VarHandle cellInfoHandle = getVarHandle(GlyphImageLayout, "cellInfo");
+        }
+        return Holder.cellInfoHandle;
+    }
+    private static VarHandle imageHandle() {
+        class Holder {
+            static final VarHandle imageHandle = getVarHandle(GlyphImageLayout, "image");
+        }
+        return Holder.imageHandle;
+    }
 
     @SuppressWarnings("restricted")
     static final float getGlyphXAdvance(long ptr) {
         MemorySegment seg = MemorySegment.ofAddress(ptr);
         seg = seg.reinterpret(GLYPHIMAGESIZE);
-        return (float)xAdvanceHandle.get(seg);
+        return (float)xAdvanceHandle().get(seg);
     }
 
     @SuppressWarnings("restricted")
     static final void setGlyphXAdvance(long ptr, float val) {
         MemorySegment seg = MemorySegment.ofAddress(ptr);
         seg = seg.reinterpret(GLYPHIMAGESIZE);
-        xAdvanceHandle.set(seg, val);
+        xAdvanceHandle().set(seg, val);
     }
 
     @SuppressWarnings("restricted")
     static final float getGlyphYAdvance(long ptr) {
         MemorySegment seg = MemorySegment.ofAddress(ptr);
         seg = seg.reinterpret(GLYPHIMAGESIZE);
-        return (float)yAdvanceHandle.get(seg);
+        return (float)yAdvanceHandle().get(seg);
     }
 
     @SuppressWarnings("restricted")
     static final char getGlyphWidth(long ptr) {
         MemorySegment seg = MemorySegment.ofAddress(ptr);
         seg = seg.reinterpret(GLYPHIMAGESIZE);
-        return (char)widthHandle.get(seg);
+        return (char)widthHandle().get(seg);
     }
 
     @SuppressWarnings("restricted")
     static final char getGlyphHeight(long ptr) {
         MemorySegment seg = MemorySegment.ofAddress(ptr);
         seg = seg.reinterpret(GLYPHIMAGESIZE);
-        return (char)heightHandle.get(seg);
+        return (char)heightHandle().get(seg);
     }
 
     @SuppressWarnings("restricted")
     static final char getGlyphRowBytes(long ptr) {
         MemorySegment seg = MemorySegment.ofAddress(ptr);
         seg = seg.reinterpret(GLYPHIMAGESIZE);
-        return (char)rowBytesHandle.get(seg);
+        return (char)rowBytesHandle().get(seg);
     }
 
     @SuppressWarnings("restricted")
     static final byte getGlyphManaged(long ptr) {
         MemorySegment seg = MemorySegment.ofAddress(ptr);
         seg = seg.reinterpret(GLYPHIMAGESIZE);
-        return (byte)managedHandle.get(seg);
+        return (byte)managedHandle().get(seg);
     }
 
     @SuppressWarnings("restricted")
     static final float getGlyphTopLeftX(long ptr) {
         MemorySegment seg = MemorySegment.ofAddress(ptr);
         seg = seg.reinterpret(GLYPHIMAGESIZE);
-        return (float)topLeftXHandle.get(seg);
+        return (float)topLeftXHandle().get(seg);
     }
 
     @SuppressWarnings("restricted")
     static final float getGlyphTopLeftY(long ptr) {
         MemorySegment seg = MemorySegment.ofAddress(ptr);
         seg = seg.reinterpret(GLYPHIMAGESIZE);
-        return (float)topLeftYHandle.get(seg);
+        return (float)topLeftYHandle().get(seg);
     }
 
     @SuppressWarnings("restricted")
     static final long getGlyphCellInfo(long ptr) {
         MemorySegment seg = MemorySegment.ofAddress(ptr);
         seg = seg.reinterpret(GLYPHIMAGESIZE);
-        return ((MemorySegment)cellInfoHandle.get(seg)).address();
+        return ((MemorySegment)cellInfoHandle().get(seg)).address();
     }
 
     @SuppressWarnings("restricted")
@@ -222,23 +272,23 @@ public final class StrikeCache {
         MemorySegment seg = MemorySegment.ofAddress(ptr);
         seg = seg.reinterpret(GLYPHIMAGESIZE);
         MemorySegment segval = MemorySegment.ofAddress(val);
-        cellInfoHandle.set(seg, segval);
+        cellInfoHandle().set(seg, segval);
     }
 
     @SuppressWarnings("restricted")
     static final long getGlyphImagePtr(long ptr) {
         MemorySegment seg = MemorySegment.ofAddress(ptr);
         seg = seg.reinterpret(GLYPHIMAGESIZE);
-        return ((MemorySegment)imageHandle.get(seg)).address();
+        return ((MemorySegment)imageHandle().get(seg)).address();
     }
 
     @SuppressWarnings("restricted")
     static final MemorySegment getGlyphPixelData(long ptr) {
         MemorySegment seg = MemorySegment.ofAddress(ptr);
         seg = seg.reinterpret(GLYPHIMAGESIZE);
-        char hgt = (char)heightHandle.get(seg);
-        char rb = (char)rowBytesHandle.get(seg);
-        MemorySegment pixelData = (MemorySegment)imageHandle.get(seg);
+        char hgt = (char)heightHandle().get(seg);
+        char rb = (char)rowBytesHandle().get(seg);
+        MemorySegment pixelData = (MemorySegment)imageHandle().get(seg);
         pixelData = pixelData.reinterpret(rb * hgt);
         return pixelData;
     }
@@ -247,9 +297,9 @@ public final class StrikeCache {
     static final byte[] getGlyphPixelBytes(long ptr) {
         MemorySegment seg = MemorySegment.ofAddress(ptr);
         seg = seg.reinterpret(GLYPHIMAGESIZE);
-        char hgt = (char)heightHandle.get(seg);
-        char rb = (char)rowBytesHandle.get(seg);
-        MemorySegment pixelData = (MemorySegment)imageHandle.get(seg);
+        char hgt = (char)heightHandle().get(seg);
+        char rb = (char)rowBytesHandle().get(seg);
+        MemorySegment pixelData = (MemorySegment)imageHandle().get(seg);
         int sz = rb * hgt;
         pixelData = pixelData.reinterpret(sz);
         return pixelData.toArray(ValueLayout.JAVA_BYTE);
