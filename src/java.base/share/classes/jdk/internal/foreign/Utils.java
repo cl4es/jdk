@@ -60,27 +60,6 @@ public final class Utils {
     // Suppresses default constructor, ensuring non-instantiability.
     private Utils() {}
 
-    private static final MethodHandle BYTE_TO_BOOL;
-    private static final MethodHandle BOOL_TO_BYTE;
-    private static final MethodHandle ADDRESS_TO_LONG;
-    private static final MethodHandle LONG_TO_ADDRESS;
-
-    static {
-        try {
-            MethodHandles.Lookup lookup = MethodHandles.lookup();
-            BYTE_TO_BOOL = lookup.findStatic(Utils.class, "byteToBoolean",
-                    MethodType.methodType(boolean.class, byte.class));
-            BOOL_TO_BYTE = lookup.findStatic(Utils.class, "booleanToByte",
-                    MethodType.methodType(byte.class, boolean.class));
-            ADDRESS_TO_LONG = lookup.findStatic(SharedUtils.class, "unboxSegment",
-                    MethodType.methodType(long.class, MemorySegment.class));
-            LONG_TO_ADDRESS = lookup.findStatic(Utils.class, "longToAddress",
-                    MethodType.methodType(MemorySegment.class, long.class, long.class, long.class));
-        } catch (Throwable ex) {
-            throw new ExceptionInInitializerError(ex);
-        }
-    }
-
     public static long alignUp(long n, long alignment) {
         return (n + alignment - 1) & -alignment;
     }
@@ -127,11 +106,42 @@ public final class Utils {
                 layout.byteAlignment() - 1, layout.order());
 
         if (layout.carrier() == boolean.class) {
-            handle = MethodHandles.filterValue(handle, BOOL_TO_BYTE, BYTE_TO_BOOL);
+            class BooleanHandles {
+                private static final MethodHandle BYTE_TO_BOOL;
+                private static final MethodHandle BOOL_TO_BYTE;
+                static {
+                    try {
+                        MethodHandles.Lookup lookup = MethodHandles.lookup();
+                        BYTE_TO_BOOL = lookup.findStatic(Utils.class, "byteToBoolean",
+                                MethodType.methodType(boolean.class, byte.class));
+                        BOOL_TO_BYTE = lookup.findStatic(Utils.class, "booleanToByte",
+                                MethodType.methodType(byte.class, boolean.class));
+                    } catch (Throwable ex) {
+                        throw new ExceptionInInitializerError(ex);
+                    }
+                }
+            }
+            handle = MethodHandles.filterValue(handle, BooleanHandles.BOOL_TO_BYTE, BooleanHandles.BYTE_TO_BOOL);
         } else if (layout instanceof AddressLayout addressLayout) {
+            class AddressHandles {
+                private static final MethodHandle ADDRESS_TO_LONG;
+                private static final MethodHandle LONG_TO_ADDRESS;
+
+                static {
+                    try {
+                        MethodHandles.Lookup lookup = MethodHandles.lookup();
+                        ADDRESS_TO_LONG = lookup.findStatic(SharedUtils.class, "unboxSegment",
+                                MethodType.methodType(long.class, MemorySegment.class));
+                        LONG_TO_ADDRESS = lookup.findStatic(Utils.class, "longToAddress",
+                                MethodType.methodType(MemorySegment.class, long.class, long.class, long.class));
+                    } catch (Throwable ex) {
+                        throw new ExceptionInInitializerError(ex);
+                    }
+                }
+            }
             handle = MethodHandles.filterValue(handle,
-                    MethodHandles.explicitCastArguments(ADDRESS_TO_LONG, MethodType.methodType(baseCarrier, MemorySegment.class)),
-                    MethodHandles.explicitCastArguments(MethodHandles.insertArguments(LONG_TO_ADDRESS, 1,
+                    MethodHandles.explicitCastArguments(AddressHandles.ADDRESS_TO_LONG, MethodType.methodType(baseCarrier, MemorySegment.class)),
+                    MethodHandles.explicitCastArguments(MethodHandles.insertArguments(AddressHandles.LONG_TO_ADDRESS, 1,
                                     pointeeByteSize(addressLayout), pointeeByteAlign(addressLayout)),
                             MethodType.methodType(MemorySegment.class, baseCarrier)));
         }
