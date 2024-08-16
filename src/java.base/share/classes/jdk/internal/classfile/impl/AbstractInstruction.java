@@ -1271,7 +1271,17 @@ public abstract sealed class AbstractInstruction
     public static final class UnboundStackInstruction
             extends UnboundInstruction implements StackInstruction {
 
-        public UnboundStackInstruction(Opcode op) {
+        public static final StackInstruction POP = new AbstractInstruction.UnboundStackInstruction(Opcode.POP);
+        public static final StackInstruction POP2 = new AbstractInstruction.UnboundStackInstruction(Opcode.POP2);
+        public static final StackInstruction DUP = new AbstractInstruction.UnboundStackInstruction(Opcode.DUP);
+        public static final StackInstruction DUP_X1 = new AbstractInstruction.UnboundStackInstruction(Opcode.DUP_X1);
+        public static final StackInstruction DUP_X2 = new AbstractInstruction.UnboundStackInstruction(Opcode.DUP_X2);
+        public static final StackInstruction DUP2 = new AbstractInstruction.UnboundStackInstruction(Opcode.DUP2);
+        public static final StackInstruction DUP2_X1 = new AbstractInstruction.UnboundStackInstruction(Opcode.DUP2_X1);
+        public static final StackInstruction DUP2_X2 = new AbstractInstruction.UnboundStackInstruction(Opcode.DUP2_X2);
+        public static final StackInstruction SWAP = new AbstractInstruction.UnboundStackInstruction(Opcode.SWAP);
+
+        private UnboundStackInstruction(Opcode op) {
             super(op);
         }
 

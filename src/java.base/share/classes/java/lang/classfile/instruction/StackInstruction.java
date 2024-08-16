@@ -29,8 +29,9 @@ import java.lang.classfile.CodeModel;
 import java.lang.classfile.Instruction;
 import java.lang.classfile.Opcode;
 import jdk.internal.classfile.impl.AbstractInstruction;
-import jdk.internal.classfile.impl.Util;
 import jdk.internal.javac.PreviewFeature;
+
+import static jdk.internal.classfile.impl.AbstractInstruction.UnboundStackInstruction.*;
 
 /**
  * Models a stack manipulation instruction in the {@code code} array of a
@@ -53,7 +54,17 @@ public sealed interface StackInstruction extends Instruction
      *         {@link Opcode.Kind#STACK}.
      */
     static StackInstruction of(Opcode op) {
-        Util.checkKind(op, Opcode.Kind.STACK);
-        return new AbstractInstruction.UnboundStackInstruction(op);
+        return switch (op) {
+            case POP -> POP;
+            case POP2 -> POP2;
+            case DUP -> DUP;
+            case DUP_X1 -> DUP_X1;
+            case DUP_X2 -> DUP_X2;
+            case DUP2 -> DUP2;
+            case DUP2_X1 -> DUP2_X1;
+            case DUP2_X2 -> DUP2_X2;
+            case SWAP -> SWAP;
+            default -> throw new IllegalArgumentException("Unknown opcode kind specified " + op);
+        };
     }
 }
