@@ -987,7 +987,14 @@ public abstract sealed class AbstractInstruction
     public static final class UnboundReturnInstruction
             extends UnboundInstruction implements ReturnInstruction {
 
-        public UnboundReturnInstruction(Opcode op) {
+        public static final ReturnInstruction IRETURN = new UnboundReturnInstruction(Opcode.IRETURN);
+        public static final ReturnInstruction LRETURN = new UnboundReturnInstruction(Opcode.LRETURN);
+        public static final ReturnInstruction FRETURN = new UnboundReturnInstruction(Opcode.FRETURN);
+        public static final ReturnInstruction DRETURN = new UnboundReturnInstruction(Opcode.DRETURN);
+        public static final ReturnInstruction ARETURN = new UnboundReturnInstruction(Opcode.ARETURN);
+        public static final ReturnInstruction RETURN = new UnboundReturnInstruction(Opcode.RETURN);
+
+        private UnboundReturnInstruction(Opcode op) {
             super(op);
         }
 

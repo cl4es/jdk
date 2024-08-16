@@ -24,15 +24,16 @@
  */
 package java.lang.classfile.instruction;
 
+import java.lang.classfile.ClassFile;
 import java.lang.classfile.CodeElement;
 import java.lang.classfile.CodeModel;
 import java.lang.classfile.Instruction;
 import java.lang.classfile.Opcode;
 import java.lang.classfile.TypeKind;
 import jdk.internal.classfile.impl.AbstractInstruction;
-import jdk.internal.classfile.impl.BytecodeHelpers;
-import jdk.internal.classfile.impl.Util;
 import jdk.internal.javac.PreviewFeature;
+
+import static jdk.internal.classfile.impl.AbstractInstruction.UnboundReturnInstruction.*;
 
 /**
  * Models a return-from-method instruction in the {@code code} array of a
@@ -57,7 +58,14 @@ public sealed interface ReturnInstruction extends Instruction
      * @param typeKind the type of the return instruction
      */
     static ReturnInstruction of(TypeKind typeKind) {
-        return of(BytecodeHelpers.returnOpcode(typeKind));
+        return switch (typeKind) {
+            case ByteType, ShortType, IntType, CharType, BooleanType -> IRETURN;
+            case FloatType -> FRETURN;
+            case LongType -> LRETURN;
+            case DoubleType -> DRETURN;
+            case ReferenceType -> ARETURN;
+            case VoidType -> RETURN;
+        };
     }
 
     /**
@@ -69,7 +77,14 @@ public sealed interface ReturnInstruction extends Instruction
      *         {@link Opcode.Kind#RETURN}.
      */
     static ReturnInstruction of(Opcode op) {
-        Util.checkKind(op, Opcode.Kind.RETURN);
-        return new AbstractInstruction.UnboundReturnInstruction(op);
+        return switch (op.bytecode()) {
+            case ClassFile.IRETURN -> IRETURN;
+            case ClassFile.LRETURN -> LRETURN;
+            case ClassFile.FRETURN -> FRETURN;
+            case ClassFile.DRETURN -> DRETURN;
+            case ClassFile.ARETURN -> ARETURN;
+            case ClassFile.RETURN -> RETURN;
+            default -> throw new IllegalArgumentException("Unknown opcode specified " + op);
+        };
     }
 }

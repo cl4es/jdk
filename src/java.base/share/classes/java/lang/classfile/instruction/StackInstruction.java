@@ -24,6 +24,7 @@
  */
 package java.lang.classfile.instruction;
 
+import java.lang.classfile.ClassFile;
 import java.lang.classfile.CodeElement;
 import java.lang.classfile.CodeModel;
 import java.lang.classfile.Instruction;
@@ -54,17 +55,17 @@ public sealed interface StackInstruction extends Instruction
      *         {@link Opcode.Kind#STACK}.
      */
     static StackInstruction of(Opcode op) {
-        return switch (op) {
-            case POP -> POP;
-            case POP2 -> POP2;
-            case DUP -> DUP;
-            case DUP_X1 -> DUP_X1;
-            case DUP_X2 -> DUP_X2;
-            case DUP2 -> DUP2;
-            case DUP2_X1 -> DUP2_X1;
-            case DUP2_X2 -> DUP2_X2;
-            case SWAP -> SWAP;
-            default -> throw new IllegalArgumentException("Unknown opcode kind specified " + op);
+        return switch (op.bytecode()) {
+            case ClassFile.POP -> POP;
+            case ClassFile.POP2 -> POP2;
+            case ClassFile.DUP -> DUP;
+            case ClassFile.DUP_X1 -> DUP_X1;
+            case ClassFile.DUP_X2 -> DUP_X2;
+            case ClassFile.DUP2 -> DUP2;
+            case ClassFile.DUP2_X1 -> DUP2_X1;
+            case ClassFile.DUP2_X2 -> DUP2_X2;
+            case ClassFile.SWAP -> SWAP;
+            default -> throw new IllegalArgumentException("Unknown opcode specified " + op);
         };
     }
 }

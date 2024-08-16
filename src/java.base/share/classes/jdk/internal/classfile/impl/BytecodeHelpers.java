@@ -132,17 +132,6 @@ public class BytecodeHelpers {
         };
     }
 
-    public static Opcode returnOpcode(TypeKind tk) {
-        return switch (tk) {
-            case ByteType, ShortType, IntType, CharType, BooleanType -> Opcode.IRETURN;
-            case FloatType -> Opcode.FRETURN;
-            case LongType -> Opcode.LRETURN;
-            case DoubleType -> Opcode.DRETURN;
-            case ReferenceType -> Opcode.ARETURN;
-            case VoidType -> Opcode.RETURN;
-        };
-    }
-
     public static Opcode arrayLoadOpcode(TypeKind tk) {
         return switch (tk) {
             case ByteType, BooleanType -> Opcode.BALOAD;
