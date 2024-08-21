@@ -76,9 +76,7 @@ class LambdaFormEditor {
             FOLD_ARGS = 10,
             FOLD_ARGS_TO_VOID = 11,
             PERMUTE_ARGS = 12,
-            LOCAL_TYPES = 13,
-            FILTER_SELECT_ARGS = 14,
-            FOLD_SELECT_ARGS = 15;
+            LOCAL_TYPES = 13;
 
     /**
      * A description of a cached transform, possibly associated with the result of the transform.
@@ -867,75 +865,6 @@ class LambdaFormEditor {
         return buf.endEdit();
     }
 
-    private LambdaForm makeArgumentCombinationForm(int pos,
-                                                   MethodType combinerType,
-                                                   int[] argPositions,
-                                                   boolean keepArguments,
-                                                   boolean dropResult) {
-        LambdaFormBuffer buf = buffer();
-        buf.startEdit();
-        int combinerArity = combinerType.parameterCount();
-        assert(combinerArity == argPositions.length);
-
-        int resultArity = (dropResult ? 0 : 1);
-
-        assert(pos <= lambdaForm.arity);
-        assert(pos > 0);  // cannot filter the MH arg itself
-        assert(combinerType == combinerType.basicType());
-        assert(combinerType.returnType() != void.class || dropResult);
-
-        BoundMethodHandle.SpeciesData oldData = oldSpeciesData();
-        BoundMethodHandle.SpeciesData newData = newSpeciesData(L_TYPE);
-
-        // The newly created LF will run with a different BMH.
-        // Switch over any pre-existing BMH field references to the new BMH class.
-        Name oldBaseAddress = lambdaForm.parameter(0);  // BMH holding the values
-        buf.replaceFunctions(oldData.getterFunctions(), newData.getterFunctions(), oldBaseAddress);
-        Name newBaseAddress = oldBaseAddress.withConstraint(newData);
-        buf.renameParameter(0, newBaseAddress);
-
-        Name getCombiner = new Name(newData.getterFunction(oldData.fieldCount()), newBaseAddress);
-        Object[] combinerArgs = new Object[1 + combinerArity];
-        combinerArgs[0] = getCombiner;
-        Name newParam = null;
-        if (keepArguments) {
-            for (int i = 0; i < combinerArity; i++) {
-                combinerArgs[i + 1] = lambdaForm.parameter(1 + argPositions[i]);
-                assert (basicType(combinerType.parameterType(i)) == lambdaForm.parameterType(1 + argPositions[i]));
-            }
-        } else {
-            newParam = new Name(pos, BasicType.basicType(combinerType.returnType()));
-            for (int i = 0; i < combinerArity; i++) {
-                int argPos = 1 + argPositions[i];
-                if (argPos == pos) {
-                    combinerArgs[i + 1] = newParam;
-                } else {
-                    combinerArgs[i + 1] = lambdaForm.parameter(argPos);
-                }
-                assert (basicType(combinerType.parameterType(i)) == lambdaForm.parameterType(1 + argPositions[i]));
-            }
-        }
-        Name callCombiner = new Name(combinerType, combinerArgs);
-
-        // insert the two new expressions
-        int exprPos = lambdaForm.arity();
-        buf.insertExpression(exprPos+0, getCombiner);
-        buf.insertExpression(exprPos+1, callCombiner);
-
-        // insert new arguments, if needed
-        int argPos = pos + resultArity;  // skip result parameter
-        if (newParam != null) {
-            buf.insertParameter(argPos++, newParam);
-            exprPos++;
-        }
-        assert(buf.lastIndexOf(callCombiner) == exprPos+1);
-        if (!dropResult) {
-            buf.replaceParameterByCopy(pos, exprPos+1);
-        }
-
-        return buf.endEdit();
-    }
-
     LambdaForm filterReturnForm(BasicType newType, boolean constantZero) {
         TransformKey key = TransformKey.of(FILTER_RETURN, constantZero ? (byte) 1 : (byte)0, newType.ordinal());
         LambdaForm form = getInCache(key);
@@ -1047,28 +976,6 @@ class LambdaFormEditor {
             return form;
         }
         form = makeArgumentCombinationForm(foldPos, combinerType, true, dropResult);
-        return putInCache(key, form);
-    }
-
-    LambdaForm foldArgumentsForm(int foldPos, boolean dropResult, MethodType combinerType, int ... argPositions) {
-        TransformKey key = TransformKey.of(FOLD_SELECT_ARGS, foldPos, dropResult ? 1 : 0, argPositions);
-        LambdaForm form = getInCache(key);
-        if (form != null) {
-            assert(form.arity == lambdaForm.arity - (dropResult ? 0 : 1));
-            return form;
-        }
-        form = makeArgumentCombinationForm(foldPos, combinerType, argPositions, true, dropResult);
-        return putInCache(key, form);
-    }
-
-    LambdaForm filterArgumentsForm(int filterPos, MethodType combinerType, int ... argPositions) {
-        TransformKey key = TransformKey.of(FILTER_SELECT_ARGS, filterPos, argPositions);
-        LambdaForm form = getInCache(key);
-        if (form != null) {
-            assert(form.arity == lambdaForm.arity);
-            return form;
-        }
-        form = makeArgumentCombinationForm(filterPos, combinerType, argPositions, false, false);
         return putInCache(key, form);
     }
 
