@@ -32,8 +32,6 @@ import java.lang.classfile.Opcode;
 import jdk.internal.classfile.impl.AbstractInstruction;
 import jdk.internal.javac.PreviewFeature;
 
-import static jdk.internal.classfile.impl.AbstractInstruction.UnboundStackInstruction.*;
-
 /**
  * Models a stack manipulation instruction in the {@code code} array of a
  * {@code Code} attribute.  Corresponding opcodes will have a {@code kind} of
@@ -56,15 +54,15 @@ public sealed interface StackInstruction extends Instruction
      */
     static StackInstruction of(Opcode op) {
         return switch (op.bytecode()) {
-            case ClassFile.POP -> POP;
-            case ClassFile.POP2 -> POP2;
-            case ClassFile.DUP -> DUP;
-            case ClassFile.DUP_X1 -> DUP_X1;
-            case ClassFile.DUP_X2 -> DUP_X2;
-            case ClassFile.DUP2 -> DUP2;
-            case ClassFile.DUP2_X1 -> DUP2_X1;
-            case ClassFile.DUP2_X2 -> DUP2_X2;
-            case ClassFile.SWAP -> SWAP;
+            case ClassFile.POP -> AbstractInstruction.UnboundStackInstruction.POP;
+            case ClassFile.POP2 -> AbstractInstruction.UnboundStackInstruction.POP2;
+            case ClassFile.DUP -> AbstractInstruction.UnboundStackInstruction.DUP;
+            case ClassFile.DUP_X1 -> AbstractInstruction.UnboundStackInstruction.DUP_X1;
+            case ClassFile.DUP_X2 -> AbstractInstruction.UnboundStackInstruction.DUP_X2;
+            case ClassFile.DUP2 -> AbstractInstruction.UnboundStackInstruction.DUP2;
+            case ClassFile.DUP2_X1 -> AbstractInstruction.UnboundStackInstruction.DUP2_X1;
+            case ClassFile.DUP2_X2 -> AbstractInstruction.UnboundStackInstruction.DUP2_X2;
+            case ClassFile.SWAP -> AbstractInstruction.UnboundStackInstruction.SWAP;
             default -> throw new IllegalArgumentException("Unknown opcode specified " + op);
         };
     }

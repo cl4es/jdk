@@ -24,6 +24,7 @@
  */
 package java.lang.classfile.instruction;
 
+import java.lang.classfile.ClassFile;
 import java.lang.classfile.CodeElement;
 import java.lang.classfile.CodeModel;
 import java.lang.classfile.Instruction;
@@ -31,8 +32,9 @@ import java.lang.classfile.Opcode;
 import java.lang.classfile.TypeKind;
 import jdk.internal.classfile.impl.AbstractInstruction;
 import jdk.internal.classfile.impl.BytecodeHelpers;
-import jdk.internal.classfile.impl.Util;
 import jdk.internal.javac.PreviewFeature;
+
+import static jdk.internal.classfile.impl.AbstractInstruction.UnboundConvertInstruction.*;
 
 /**
  * Models a primitive conversion instruction in the {@code code} array of a
@@ -74,7 +76,23 @@ public sealed interface ConvertInstruction extends Instruction
      *         {@link Opcode.Kind#CONVERT}.
      */
     static ConvertInstruction of(Opcode op) {
-        Util.checkKind(op, Opcode.Kind.CONVERT);
-        return new AbstractInstruction.UnboundConvertInstruction(op);
+        return switch (op.bytecode()) {
+            case ClassFile.I2L -> AbstractInstruction.UnboundConvertInstruction.I2L;
+            case ClassFile.I2F -> AbstractInstruction.UnboundConvertInstruction.I2F;
+            case ClassFile.I2D -> AbstractInstruction.UnboundConvertInstruction.I2D;
+            case ClassFile.L2I -> AbstractInstruction.UnboundConvertInstruction.L2I;
+            case ClassFile.L2F -> AbstractInstruction.UnboundConvertInstruction.L2F;
+            case ClassFile.L2D -> AbstractInstruction.UnboundConvertInstruction.L2D;
+            case ClassFile.F2I -> AbstractInstruction.UnboundConvertInstruction.F2I;
+            case ClassFile.F2L -> AbstractInstruction.UnboundConvertInstruction.F2L;
+            case ClassFile.F2D -> AbstractInstruction.UnboundConvertInstruction.F2D;
+            case ClassFile.D2I -> AbstractInstruction.UnboundConvertInstruction.D2I;
+            case ClassFile.D2L -> AbstractInstruction.UnboundConvertInstruction.D2L;
+            case ClassFile.D2F -> AbstractInstruction.UnboundConvertInstruction.D2F;
+            case ClassFile.I2B -> AbstractInstruction.UnboundConvertInstruction.I2B;
+            case ClassFile.I2C -> AbstractInstruction.UnboundConvertInstruction.I2C;
+            case ClassFile.I2S -> AbstractInstruction.UnboundConvertInstruction.I2S;
+            default -> throw new IllegalArgumentException(String.format("Wrong opcode specified; found %s, expected Opcode.Kind.CONVERT", op));
+        };
     }
 }

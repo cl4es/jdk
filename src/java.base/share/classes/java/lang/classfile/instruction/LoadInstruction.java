@@ -24,6 +24,7 @@
  */
 package java.lang.classfile.instruction;
 
+import java.lang.classfile.ClassFile;
 import java.lang.classfile.CodeElement;
 import java.lang.classfile.CodeModel;
 import java.lang.classfile.Instruction;
@@ -77,7 +78,31 @@ public sealed interface LoadInstruction extends Instruction
      *         {@link Opcode.Kind#LOAD}.
      */
     static LoadInstruction of(Opcode op, int slot) {
-        Util.checkKind(op, Opcode.Kind.LOAD);
-        return new AbstractInstruction.UnboundLoadInstruction(op, slot);
+        return switch (op.bytecode()) {
+            case ClassFile.ILOAD_0 -> AbstractInstruction.UnboundLoadInstruction.ILOAD_0;
+            case ClassFile.ILOAD_1 -> AbstractInstruction.UnboundLoadInstruction.ILOAD_1;
+            case ClassFile.ILOAD_2 -> AbstractInstruction.UnboundLoadInstruction.ILOAD_2;
+            case ClassFile.ILOAD_3 -> AbstractInstruction.UnboundLoadInstruction.ILOAD_3;
+            case ClassFile.LLOAD_0 -> AbstractInstruction.UnboundLoadInstruction.LLOAD_0;
+            case ClassFile.LLOAD_1 -> AbstractInstruction.UnboundLoadInstruction.LLOAD_1;
+            case ClassFile.LLOAD_2 -> AbstractInstruction.UnboundLoadInstruction.LLOAD_2;
+            case ClassFile.LLOAD_3 -> AbstractInstruction.UnboundLoadInstruction.LLOAD_3;
+            case ClassFile.FLOAD_0 -> AbstractInstruction.UnboundLoadInstruction.FLOAD_0;
+            case ClassFile.FLOAD_1 -> AbstractInstruction.UnboundLoadInstruction.FLOAD_1;
+            case ClassFile.FLOAD_2 -> AbstractInstruction.UnboundLoadInstruction.FLOAD_2;
+            case ClassFile.FLOAD_3 -> AbstractInstruction.UnboundLoadInstruction.FLOAD_3;
+            case ClassFile.DLOAD_0 -> AbstractInstruction.UnboundLoadInstruction.DLOAD_0;
+            case ClassFile.DLOAD_1 -> AbstractInstruction.UnboundLoadInstruction.DLOAD_1;
+            case ClassFile.DLOAD_2 -> AbstractInstruction.UnboundLoadInstruction.DLOAD_2;
+            case ClassFile.DLOAD_3 -> AbstractInstruction.UnboundLoadInstruction.DLOAD_3;
+            case ClassFile.ALOAD_0 -> AbstractInstruction.UnboundLoadInstruction.ALOAD_0;
+            case ClassFile.ALOAD_1 -> AbstractInstruction.UnboundLoadInstruction.ALOAD_1;
+            case ClassFile.ALOAD_2 -> AbstractInstruction.UnboundLoadInstruction.ALOAD_2;
+            case ClassFile.ALOAD_3 -> AbstractInstruction.UnboundLoadInstruction.ALOAD_3;
+            default -> {
+                Util.checkKind(op, Opcode.Kind.LOAD);
+                yield new AbstractInstruction.UnboundLoadInstruction(op, slot);
+            }
+        };
     }
 }

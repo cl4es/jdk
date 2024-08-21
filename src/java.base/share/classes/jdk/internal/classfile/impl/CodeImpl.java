@@ -45,30 +45,6 @@ public final class CodeImpl
         extends BoundAttribute.BoundCodeAttribute
         implements LabelContext {
 
-    static final Instruction[] SINGLETON_INSTRUCTIONS = new Instruction[256];
-
-    static {
-        for (var o : Opcode.values()) {
-            if (o.sizeIfFixed() == 1) {
-                SINGLETON_INSTRUCTIONS[o.bytecode()] = switch (o.kind()) {
-                    case ARRAY_LOAD -> ArrayLoadInstruction.of(o);
-                    case ARRAY_STORE -> ArrayStoreInstruction.of(o);
-                    case CONSTANT -> ConstantInstruction.ofIntrinsic(o);
-                    case CONVERT -> ConvertInstruction.of(o);
-                    case LOAD -> LoadInstruction.of(o, o.slot());
-                    case MONITOR -> MonitorInstruction.of(o);
-                    case NOP -> NopInstruction.of();
-                    case OPERATOR -> OperatorInstruction.of(o);
-                    case RETURN -> ReturnInstruction.of(o);
-                    case STACK -> StackInstruction.of(o);
-                    case STORE -> StoreInstruction.of(o, o.slot());
-                    case THROW_EXCEPTION -> ThrowInstruction.of();
-                    default -> throw new AssertionError("invalid opcode: " + o);
-                };
-            }
-        }
-    }
-
     List<ExceptionCatch> exceptionTable;
     List<Attribute<?>> attributes;
 
@@ -481,12 +457,156 @@ public final class CodeImpl
             case JSR -> new AbstractInstruction.BoundJsrInstruction(Opcode.JSR, CodeImpl.this, pos);
             case RET ->  new AbstractInstruction.BoundRetInstruction(Opcode.RET, this, pos);
             case JSR_W -> new AbstractInstruction.BoundJsrInstruction(Opcode.JSR_W, CodeImpl.this, pos);
-            default -> {
-                Instruction instr = SINGLETON_INSTRUCTIONS[bc];
-                if (instr == null)
-                    throw new IllegalArgumentException("unknown instruction: " + bc);
-                yield instr;
-            }
+
+            // Singleton instructions
+            case ATHROW -> AbstractInstruction.UnboundThrowInstruction.ATHROW;
+            case NOP -> AbstractInstruction.UnboundNopInstruction.NOP;
+            case IALOAD -> AbstractInstruction.UnboundArrayLoadInstruction.IALOAD;
+            case LALOAD -> AbstractInstruction.UnboundArrayLoadInstruction.LALOAD;
+            case FALOAD -> AbstractInstruction.UnboundArrayLoadInstruction.FALOAD;
+            case DALOAD -> AbstractInstruction.UnboundArrayLoadInstruction.DALOAD;
+            case AALOAD -> AbstractInstruction.UnboundArrayLoadInstruction.AALOAD;
+            case BALOAD -> AbstractInstruction.UnboundArrayLoadInstruction.BALOAD;
+            case CALOAD -> AbstractInstruction.UnboundArrayLoadInstruction.CALOAD;
+            case SALOAD -> AbstractInstruction.UnboundArrayLoadInstruction.SALOAD;
+            case IASTORE -> AbstractInstruction.UnboundArrayStoreInstruction.IASTORE;
+            case LASTORE -> AbstractInstruction.UnboundArrayStoreInstruction.LASTORE;
+            case FASTORE -> AbstractInstruction.UnboundArrayStoreInstruction.FASTORE;
+            case DASTORE -> AbstractInstruction.UnboundArrayStoreInstruction.DASTORE;
+            case AASTORE -> AbstractInstruction.UnboundArrayStoreInstruction.AASTORE;
+            case BASTORE -> AbstractInstruction.UnboundArrayStoreInstruction.BASTORE;
+            case CASTORE -> AbstractInstruction.UnboundArrayStoreInstruction.CASTORE;
+            case SASTORE -> AbstractInstruction.UnboundArrayStoreInstruction.SASTORE;
+            case ACONST_NULL -> AbstractInstruction.UnboundIntrinsicConstantInstruction.ACONST_NULL;
+            case ICONST_M1 -> AbstractInstruction.UnboundIntrinsicConstantInstruction.ICONST_M1;
+            case ICONST_0 -> AbstractInstruction.UnboundIntrinsicConstantInstruction.ICONST_0;
+            case ICONST_1 -> AbstractInstruction.UnboundIntrinsicConstantInstruction.ICONST_1;
+            case ICONST_2 -> AbstractInstruction.UnboundIntrinsicConstantInstruction.ICONST_2;
+            case ICONST_3 -> AbstractInstruction.UnboundIntrinsicConstantInstruction.ICONST_3;
+            case ICONST_4 -> AbstractInstruction.UnboundIntrinsicConstantInstruction.ICONST_4;
+            case ICONST_5 -> AbstractInstruction.UnboundIntrinsicConstantInstruction.ICONST_5;
+            case LCONST_0 -> AbstractInstruction.UnboundIntrinsicConstantInstruction.LCONST_0;
+            case LCONST_1 -> AbstractInstruction.UnboundIntrinsicConstantInstruction.LCONST_1;
+            case FCONST_0 -> AbstractInstruction.UnboundIntrinsicConstantInstruction.FCONST_0;
+            case FCONST_1 -> AbstractInstruction.UnboundIntrinsicConstantInstruction.FCONST_1;
+            case FCONST_2 -> AbstractInstruction.UnboundIntrinsicConstantInstruction.FCONST_2;
+            case DCONST_0 -> AbstractInstruction.UnboundIntrinsicConstantInstruction.DCONST_0;
+            case DCONST_1 -> AbstractInstruction.UnboundIntrinsicConstantInstruction.DCONST_1;
+            case I2L -> AbstractInstruction.UnboundConvertInstruction.I2L;
+            case I2F -> AbstractInstruction.UnboundConvertInstruction.I2F;
+            case I2D -> AbstractInstruction.UnboundConvertInstruction.I2D;
+            case L2I -> AbstractInstruction.UnboundConvertInstruction.L2I;
+            case L2F -> AbstractInstruction.UnboundConvertInstruction.L2F;
+            case L2D -> AbstractInstruction.UnboundConvertInstruction.L2D;
+            case F2I -> AbstractInstruction.UnboundConvertInstruction.F2I;
+            case F2L -> AbstractInstruction.UnboundConvertInstruction.F2L;
+            case F2D -> AbstractInstruction.UnboundConvertInstruction.F2D;
+            case D2I -> AbstractInstruction.UnboundConvertInstruction.D2I;
+            case D2L -> AbstractInstruction.UnboundConvertInstruction.D2L;
+            case D2F -> AbstractInstruction.UnboundConvertInstruction.D2F;
+            case I2B -> AbstractInstruction.UnboundConvertInstruction.I2B;
+            case I2C -> AbstractInstruction.UnboundConvertInstruction.I2C;
+            case I2S -> AbstractInstruction.UnboundConvertInstruction.I2S;
+            case ILOAD_0 -> AbstractInstruction.UnboundLoadInstruction.ILOAD_0;
+            case ILOAD_1 -> AbstractInstruction.UnboundLoadInstruction.ILOAD_1;
+            case ILOAD_2 -> AbstractInstruction.UnboundLoadInstruction.ILOAD_2;
+            case ILOAD_3 -> AbstractInstruction.UnboundLoadInstruction.ILOAD_3;
+            case LLOAD_0 -> AbstractInstruction.UnboundLoadInstruction.LLOAD_0;
+            case LLOAD_1 -> AbstractInstruction.UnboundLoadInstruction.LLOAD_1;
+            case LLOAD_2 -> AbstractInstruction.UnboundLoadInstruction.LLOAD_2;
+            case LLOAD_3 -> AbstractInstruction.UnboundLoadInstruction.LLOAD_3;
+            case FLOAD_0 -> AbstractInstruction.UnboundLoadInstruction.FLOAD_0;
+            case FLOAD_1 -> AbstractInstruction.UnboundLoadInstruction.FLOAD_1;
+            case FLOAD_2 -> AbstractInstruction.UnboundLoadInstruction.FLOAD_2;
+            case FLOAD_3 -> AbstractInstruction.UnboundLoadInstruction.FLOAD_3;
+            case DLOAD_0 -> AbstractInstruction.UnboundLoadInstruction.DLOAD_0;
+            case DLOAD_1 -> AbstractInstruction.UnboundLoadInstruction.DLOAD_1;
+            case DLOAD_2 -> AbstractInstruction.UnboundLoadInstruction.DLOAD_2;
+            case DLOAD_3 -> AbstractInstruction.UnboundLoadInstruction.DLOAD_3;
+            case ALOAD_0 -> AbstractInstruction.UnboundLoadInstruction.ALOAD_0;
+            case ALOAD_1 -> AbstractInstruction.UnboundLoadInstruction.ALOAD_1;
+            case ALOAD_2 -> AbstractInstruction.UnboundLoadInstruction.ALOAD_2;
+            case ALOAD_3 -> AbstractInstruction.UnboundLoadInstruction.ALOAD_3;
+            case MONITORENTER -> AbstractInstruction.UnboundMonitorInstruction.MONITORENTER;
+            case MONITOREXIT -> AbstractInstruction.UnboundMonitorInstruction.MONITOREXIT;
+            case IADD -> AbstractInstruction.UnboundOperatorInstruction.IADD;
+            case LADD -> AbstractInstruction.UnboundOperatorInstruction.LADD;
+            case FADD -> AbstractInstruction.UnboundOperatorInstruction.FADD;
+            case DADD -> AbstractInstruction.UnboundOperatorInstruction.DADD;
+            case ISUB -> AbstractInstruction.UnboundOperatorInstruction.ISUB;
+            case LSUB -> AbstractInstruction.UnboundOperatorInstruction.LSUB;
+            case FSUB -> AbstractInstruction.UnboundOperatorInstruction.FSUB;
+            case DSUB -> AbstractInstruction.UnboundOperatorInstruction.DSUB;
+            case IMUL -> AbstractInstruction.UnboundOperatorInstruction.IMUL;
+            case LMUL -> AbstractInstruction.UnboundOperatorInstruction.LMUL;
+            case FMUL -> AbstractInstruction.UnboundOperatorInstruction.FMUL;
+            case DMUL -> AbstractInstruction.UnboundOperatorInstruction.DMUL;
+            case IDIV -> AbstractInstruction.UnboundOperatorInstruction.IDIV;
+            case LDIV -> AbstractInstruction.UnboundOperatorInstruction.LDIV;
+            case FDIV -> AbstractInstruction.UnboundOperatorInstruction.FDIV;
+            case DDIV -> AbstractInstruction.UnboundOperatorInstruction.DDIV;
+            case IREM -> AbstractInstruction.UnboundOperatorInstruction.IREM;
+            case LREM -> AbstractInstruction.UnboundOperatorInstruction.LREM;
+            case FREM -> AbstractInstruction.UnboundOperatorInstruction.FREM;
+            case DREM -> AbstractInstruction.UnboundOperatorInstruction.DREM;
+            case INEG -> AbstractInstruction.UnboundOperatorInstruction.INEG;
+            case LNEG -> AbstractInstruction.UnboundOperatorInstruction.LNEG;
+            case FNEG -> AbstractInstruction.UnboundOperatorInstruction.FNEG;
+            case DNEG -> AbstractInstruction.UnboundOperatorInstruction.DNEG;
+            case ISHL -> AbstractInstruction.UnboundOperatorInstruction.ISHL;
+            case LSHL -> AbstractInstruction.UnboundOperatorInstruction.LSHL;
+            case ISHR -> AbstractInstruction.UnboundOperatorInstruction.ISHR;
+            case LSHR -> AbstractInstruction.UnboundOperatorInstruction.LSHR;
+            case IUSHR -> AbstractInstruction.UnboundOperatorInstruction.IUSHR;
+            case LUSHR -> AbstractInstruction.UnboundOperatorInstruction.LUSHR;
+            case IAND -> AbstractInstruction.UnboundOperatorInstruction.IAND;
+            case LAND -> AbstractInstruction.UnboundOperatorInstruction.LAND;
+            case IOR -> AbstractInstruction.UnboundOperatorInstruction.IOR;
+            case LOR -> AbstractInstruction.UnboundOperatorInstruction.LOR;
+            case IXOR -> AbstractInstruction.UnboundOperatorInstruction.IXOR;
+            case LXOR -> AbstractInstruction.UnboundOperatorInstruction.LXOR;
+            case LCMP -> AbstractInstruction.UnboundOperatorInstruction.LCMP;
+            case FCMPL -> AbstractInstruction.UnboundOperatorInstruction.FCMPL;
+            case FCMPG -> AbstractInstruction.UnboundOperatorInstruction.FCMPG;
+            case DCMPL -> AbstractInstruction.UnboundOperatorInstruction.DCMPL;
+            case DCMPG -> AbstractInstruction.UnboundOperatorInstruction.DCMPG;
+            case ARRAYLENGTH -> AbstractInstruction.UnboundOperatorInstruction.ARRAYLENGTH;
+            case IRETURN -> AbstractInstruction.UnboundReturnInstruction.IRETURN;
+            case LRETURN -> AbstractInstruction.UnboundReturnInstruction.LRETURN;
+            case FRETURN -> AbstractInstruction.UnboundReturnInstruction.FRETURN;
+            case DRETURN -> AbstractInstruction.UnboundReturnInstruction.DRETURN;
+            case ARETURN -> AbstractInstruction.UnboundReturnInstruction.ARETURN;
+            case RETURN -> AbstractInstruction.UnboundReturnInstruction.RETURN;
+            case POP -> AbstractInstruction.UnboundStackInstruction.POP;
+            case POP2 -> AbstractInstruction.UnboundStackInstruction.POP2;
+            case DUP -> AbstractInstruction.UnboundStackInstruction.DUP;
+            case DUP_X1 -> AbstractInstruction.UnboundStackInstruction.DUP_X1;
+            case DUP_X2 -> AbstractInstruction.UnboundStackInstruction.DUP_X2;
+            case DUP2 -> AbstractInstruction.UnboundStackInstruction.DUP2;
+            case DUP2_X1 -> AbstractInstruction.UnboundStackInstruction.DUP2_X1;
+            case DUP2_X2 -> AbstractInstruction.UnboundStackInstruction.DUP2_X2;
+            case SWAP -> AbstractInstruction.UnboundStackInstruction.SWAP;
+            case ISTORE_0 -> AbstractInstruction.UnboundStoreInstruction.ISTORE_0;
+            case ISTORE_1 -> AbstractInstruction.UnboundStoreInstruction.ISTORE_1;
+            case ISTORE_2 -> AbstractInstruction.UnboundStoreInstruction.ISTORE_2;
+            case ISTORE_3 -> AbstractInstruction.UnboundStoreInstruction.ISTORE_3;
+            case LSTORE_0 -> AbstractInstruction.UnboundStoreInstruction.LSTORE_0;
+            case LSTORE_1 -> AbstractInstruction.UnboundStoreInstruction.LSTORE_1;
+            case LSTORE_2 -> AbstractInstruction.UnboundStoreInstruction.LSTORE_2;
+            case LSTORE_3 -> AbstractInstruction.UnboundStoreInstruction.LSTORE_3;
+            case FSTORE_0 -> AbstractInstruction.UnboundStoreInstruction.FSTORE_0;
+            case FSTORE_1 -> AbstractInstruction.UnboundStoreInstruction.FSTORE_1;
+            case FSTORE_2 -> AbstractInstruction.UnboundStoreInstruction.FSTORE_2;
+            case FSTORE_3 -> AbstractInstruction.UnboundStoreInstruction.FSTORE_3;
+            case DSTORE_0 -> AbstractInstruction.UnboundStoreInstruction.DSTORE_0;
+            case DSTORE_1 -> AbstractInstruction.UnboundStoreInstruction.DSTORE_1;
+            case DSTORE_2 -> AbstractInstruction.UnboundStoreInstruction.DSTORE_2;
+            case DSTORE_3 -> AbstractInstruction.UnboundStoreInstruction.DSTORE_3;
+            case ASTORE_0 -> AbstractInstruction.UnboundStoreInstruction.ASTORE_0;
+            case ASTORE_1 -> AbstractInstruction.UnboundStoreInstruction.ASTORE_1;
+            case ASTORE_2 -> AbstractInstruction.UnboundStoreInstruction.ASTORE_2;
+            case ASTORE_3 -> AbstractInstruction.UnboundStoreInstruction.ASTORE_3;
+            default -> throw new IllegalArgumentException("unknown instruction: " + bc);
         };
     }
 

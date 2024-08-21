@@ -788,6 +788,28 @@ public abstract sealed class AbstractInstruction
             extends UnboundInstruction implements LoadInstruction {
         final int slot;
 
+        // Constant variants
+        public static final LoadInstruction ILOAD_0 = new UnboundLoadInstruction(Opcode.ILOAD_0, Opcode.ILOAD_0.slot());
+        public static final LoadInstruction ILOAD_1 = new UnboundLoadInstruction(Opcode.ILOAD_1, Opcode.ILOAD_1.slot());
+        public static final LoadInstruction ILOAD_2 = new UnboundLoadInstruction(Opcode.ILOAD_2, Opcode.ILOAD_2.slot());
+        public static final LoadInstruction ILOAD_3 = new UnboundLoadInstruction(Opcode.ILOAD_3, Opcode.ILOAD_3.slot());
+        public static final LoadInstruction LLOAD_0 = new UnboundLoadInstruction(Opcode.LLOAD_0, Opcode.LLOAD_0.slot());
+        public static final LoadInstruction LLOAD_1 = new UnboundLoadInstruction(Opcode.LLOAD_1, Opcode.LLOAD_1.slot());
+        public static final LoadInstruction LLOAD_2 = new UnboundLoadInstruction(Opcode.LLOAD_2, Opcode.LLOAD_2.slot());
+        public static final LoadInstruction LLOAD_3 = new UnboundLoadInstruction(Opcode.LLOAD_3, Opcode.LLOAD_3.slot());
+        public static final LoadInstruction FLOAD_0 = new UnboundLoadInstruction(Opcode.FLOAD_0, Opcode.FLOAD_0.slot());
+        public static final LoadInstruction FLOAD_1 = new UnboundLoadInstruction(Opcode.FLOAD_1, Opcode.FLOAD_1.slot());
+        public static final LoadInstruction FLOAD_2 = new UnboundLoadInstruction(Opcode.FLOAD_2, Opcode.FLOAD_2.slot());
+        public static final LoadInstruction FLOAD_3 = new UnboundLoadInstruction(Opcode.FLOAD_3, Opcode.FLOAD_3.slot());
+        public static final LoadInstruction DLOAD_0 = new UnboundLoadInstruction(Opcode.DLOAD_0, Opcode.DLOAD_0.slot());
+        public static final LoadInstruction DLOAD_1 = new UnboundLoadInstruction(Opcode.DLOAD_1, Opcode.DLOAD_1.slot());
+        public static final LoadInstruction DLOAD_2 = new UnboundLoadInstruction(Opcode.DLOAD_2, Opcode.DLOAD_2.slot());
+        public static final LoadInstruction DLOAD_3 = new UnboundLoadInstruction(Opcode.DLOAD_3, Opcode.DLOAD_3.slot());
+        public static final LoadInstruction ALOAD_0 = new UnboundLoadInstruction(Opcode.ALOAD_0, Opcode.ALOAD_0.slot());
+        public static final LoadInstruction ALOAD_1 = new UnboundLoadInstruction(Opcode.ALOAD_1, Opcode.ALOAD_1.slot());
+        public static final LoadInstruction ALOAD_2 = new UnboundLoadInstruction(Opcode.ALOAD_2, Opcode.ALOAD_2.slot());
+        public static final LoadInstruction ALOAD_3 = new UnboundLoadInstruction(Opcode.ALOAD_3, Opcode.ALOAD_3.slot());
+
         public UnboundLoadInstruction(Opcode op, int slot) {
             super(op);
             this.slot = slot;
@@ -818,6 +840,28 @@ public abstract sealed class AbstractInstruction
     public static final class UnboundStoreInstruction
             extends UnboundInstruction implements StoreInstruction {
         final int slot;
+
+        // Constant variants
+        public static final StoreInstruction ISTORE_0 = new UnboundStoreInstruction(Opcode.ISTORE_0, Opcode.ISTORE_0.slot());
+        public static final StoreInstruction ISTORE_1 = new UnboundStoreInstruction(Opcode.ISTORE_1, Opcode.ISTORE_1.slot());
+        public static final StoreInstruction ISTORE_2 = new UnboundStoreInstruction(Opcode.ISTORE_2, Opcode.ISTORE_2.slot());
+        public static final StoreInstruction ISTORE_3 = new UnboundStoreInstruction(Opcode.ISTORE_3, Opcode.ISTORE_3.slot());
+        public static final StoreInstruction LSTORE_0 = new UnboundStoreInstruction(Opcode.LSTORE_0, Opcode.LSTORE_0.slot());
+        public static final StoreInstruction LSTORE_1 = new UnboundStoreInstruction(Opcode.LSTORE_1, Opcode.LSTORE_1.slot());
+        public static final StoreInstruction LSTORE_2 = new UnboundStoreInstruction(Opcode.LSTORE_2, Opcode.LSTORE_2.slot());
+        public static final StoreInstruction LSTORE_3 = new UnboundStoreInstruction(Opcode.LSTORE_3, Opcode.LSTORE_3.slot());
+        public static final StoreInstruction FSTORE_0 = new UnboundStoreInstruction(Opcode.FSTORE_0, Opcode.FSTORE_0.slot());
+        public static final StoreInstruction FSTORE_1 = new UnboundStoreInstruction(Opcode.FSTORE_1, Opcode.FSTORE_1.slot());
+        public static final StoreInstruction FSTORE_2 = new UnboundStoreInstruction(Opcode.FSTORE_2, Opcode.FSTORE_2.slot());
+        public static final StoreInstruction FSTORE_3 = new UnboundStoreInstruction(Opcode.FSTORE_3, Opcode.FSTORE_3.slot());
+        public static final StoreInstruction DSTORE_0 = new UnboundStoreInstruction(Opcode.DSTORE_0, Opcode.DSTORE_0.slot());
+        public static final StoreInstruction DSTORE_1 = new UnboundStoreInstruction(Opcode.DSTORE_1, Opcode.DSTORE_1.slot());
+        public static final StoreInstruction DSTORE_2 = new UnboundStoreInstruction(Opcode.DSTORE_2, Opcode.DSTORE_2.slot());
+        public static final StoreInstruction DSTORE_3 = new UnboundStoreInstruction(Opcode.DSTORE_3, Opcode.DSTORE_3.slot());
+        public static final StoreInstruction ASTORE_0 = new UnboundStoreInstruction(Opcode.ASTORE_0, Opcode.ASTORE_0.slot());
+        public static final StoreInstruction ASTORE_1 = new UnboundStoreInstruction(Opcode.ASTORE_1, Opcode.ASTORE_1.slot());
+        public static final StoreInstruction ASTORE_2 = new UnboundStoreInstruction(Opcode.ASTORE_2, Opcode.ASTORE_2.slot());
+        public static final StoreInstruction ASTORE_3 = new UnboundStoreInstruction(Opcode.ASTORE_3, Opcode.ASTORE_3.slot());
 
         public UnboundStoreInstruction(Opcode op, int slot) {
             super(op);
@@ -1013,7 +1057,9 @@ public abstract sealed class AbstractInstruction
     public static final class UnboundThrowInstruction
             extends UnboundInstruction implements ThrowInstruction {
 
-        public UnboundThrowInstruction() {
+        public static final ThrowInstruction ATHROW = new UnboundThrowInstruction();
+
+        private UnboundThrowInstruction() {
             super(Opcode.ATHROW);
         }
 
@@ -1227,7 +1273,16 @@ public abstract sealed class AbstractInstruction
     public static final class UnboundArrayLoadInstruction
             extends UnboundInstruction implements ArrayLoadInstruction {
 
-        public UnboundArrayLoadInstruction(Opcode op) {
+        public static final ArrayLoadInstruction IALOAD = new AbstractInstruction.UnboundArrayLoadInstruction(Opcode.IALOAD);
+        public static final ArrayLoadInstruction LALOAD = new AbstractInstruction.UnboundArrayLoadInstruction(Opcode.LALOAD);
+        public static final ArrayLoadInstruction FALOAD = new AbstractInstruction.UnboundArrayLoadInstruction(Opcode.FALOAD);
+        public static final ArrayLoadInstruction DALOAD = new AbstractInstruction.UnboundArrayLoadInstruction(Opcode.DALOAD);
+        public static final ArrayLoadInstruction AALOAD = new AbstractInstruction.UnboundArrayLoadInstruction(Opcode.AALOAD);
+        public static final ArrayLoadInstruction BALOAD = new AbstractInstruction.UnboundArrayLoadInstruction(Opcode.BALOAD);
+        public static final ArrayLoadInstruction CALOAD = new AbstractInstruction.UnboundArrayLoadInstruction(Opcode.CALOAD);
+        public static final ArrayLoadInstruction SALOAD = new AbstractInstruction.UnboundArrayLoadInstruction(Opcode.SALOAD);
+
+        private UnboundArrayLoadInstruction(Opcode op) {
             super(op);
         }
 
@@ -1240,7 +1295,16 @@ public abstract sealed class AbstractInstruction
     public static final class UnboundArrayStoreInstruction
             extends UnboundInstruction implements ArrayStoreInstruction {
 
-        public UnboundArrayStoreInstruction(Opcode op) {
+        public static final ArrayStoreInstruction IASTORE = new AbstractInstruction.UnboundArrayStoreInstruction(Opcode.IASTORE);
+        public static final ArrayStoreInstruction LASTORE = new AbstractInstruction.UnboundArrayStoreInstruction(Opcode.LASTORE);
+        public static final ArrayStoreInstruction FASTORE = new AbstractInstruction.UnboundArrayStoreInstruction(Opcode.FASTORE);
+        public static final ArrayStoreInstruction DASTORE = new AbstractInstruction.UnboundArrayStoreInstruction(Opcode.DASTORE);
+        public static final ArrayStoreInstruction AASTORE = new AbstractInstruction.UnboundArrayStoreInstruction(Opcode.AASTORE);
+        public static final ArrayStoreInstruction BASTORE = new AbstractInstruction.UnboundArrayStoreInstruction(Opcode.BASTORE);
+        public static final ArrayStoreInstruction CASTORE = new AbstractInstruction.UnboundArrayStoreInstruction(Opcode.CASTORE);
+        public static final ArrayStoreInstruction SASTORE = new AbstractInstruction.UnboundArrayStoreInstruction(Opcode.SASTORE);
+
+        private UnboundArrayStoreInstruction(Opcode op) {
             super(op);
         }
 
@@ -1291,13 +1355,28 @@ public abstract sealed class AbstractInstruction
         private UnboundStackInstruction(Opcode op) {
             super(op);
         }
-
     }
 
     public static final class UnboundConvertInstruction
             extends UnboundInstruction implements ConvertInstruction {
 
-        public UnboundConvertInstruction(Opcode op) {
+        public static final ConvertInstruction I2L = new AbstractInstruction.UnboundConvertInstruction(Opcode.I2L);
+        public static final ConvertInstruction I2F = new AbstractInstruction.UnboundConvertInstruction(Opcode.I2F);
+        public static final ConvertInstruction I2D = new AbstractInstruction.UnboundConvertInstruction(Opcode.I2D);
+        public static final ConvertInstruction L2I = new AbstractInstruction.UnboundConvertInstruction(Opcode.L2I);
+        public static final ConvertInstruction L2F = new AbstractInstruction.UnboundConvertInstruction(Opcode.L2F);
+        public static final ConvertInstruction L2D = new AbstractInstruction.UnboundConvertInstruction(Opcode.L2D);
+        public static final ConvertInstruction F2I = new AbstractInstruction.UnboundConvertInstruction(Opcode.F2I);
+        public static final ConvertInstruction F2L = new AbstractInstruction.UnboundConvertInstruction(Opcode.F2L);
+        public static final ConvertInstruction F2D = new AbstractInstruction.UnboundConvertInstruction(Opcode.F2D);
+        public static final ConvertInstruction D2I = new AbstractInstruction.UnboundConvertInstruction(Opcode.D2I);
+        public static final ConvertInstruction D2L = new AbstractInstruction.UnboundConvertInstruction(Opcode.D2L);
+        public static final ConvertInstruction D2F = new AbstractInstruction.UnboundConvertInstruction(Opcode.D2F);
+        public static final ConvertInstruction I2B = new AbstractInstruction.UnboundConvertInstruction(Opcode.I2B);
+        public static final ConvertInstruction I2C = new AbstractInstruction.UnboundConvertInstruction(Opcode.I2C);
+        public static final ConvertInstruction I2S = new AbstractInstruction.UnboundConvertInstruction(Opcode.I2S);
+
+        private UnboundConvertInstruction(Opcode op) {
             super(op);
         }
 
@@ -1315,7 +1394,50 @@ public abstract sealed class AbstractInstruction
     public static final class UnboundOperatorInstruction
             extends UnboundInstruction implements OperatorInstruction {
 
-        public UnboundOperatorInstruction(Opcode op) {
+        public static final OperatorInstruction IADD  = new UnboundOperatorInstruction(Opcode.IADD);
+        public static final OperatorInstruction LADD  = new UnboundOperatorInstruction(Opcode.LADD);
+        public static final OperatorInstruction FADD  = new UnboundOperatorInstruction(Opcode.FADD);
+        public static final OperatorInstruction DADD  = new UnboundOperatorInstruction(Opcode.DADD);
+        public static final OperatorInstruction ISUB  = new UnboundOperatorInstruction(Opcode.ISUB);
+        public static final OperatorInstruction LSUB  = new UnboundOperatorInstruction(Opcode.LSUB);
+        public static final OperatorInstruction FSUB  = new UnboundOperatorInstruction(Opcode.FSUB);
+        public static final OperatorInstruction DSUB  = new UnboundOperatorInstruction(Opcode.DSUB);
+        public static final OperatorInstruction IMUL  = new UnboundOperatorInstruction(Opcode.IMUL);
+        public static final OperatorInstruction LMUL  = new UnboundOperatorInstruction(Opcode.LMUL);
+        public static final OperatorInstruction FMUL  = new UnboundOperatorInstruction(Opcode.FMUL);
+        public static final OperatorInstruction DMUL  = new UnboundOperatorInstruction(Opcode.DMUL);
+        public static final OperatorInstruction IDIV  = new UnboundOperatorInstruction(Opcode.IDIV);
+        public static final OperatorInstruction LDIV  = new UnboundOperatorInstruction(Opcode.LDIV);
+        public static final OperatorInstruction FDIV  = new UnboundOperatorInstruction(Opcode.FDIV);
+        public static final OperatorInstruction DDIV  = new UnboundOperatorInstruction(Opcode.DDIV);
+        public static final OperatorInstruction IREM  = new UnboundOperatorInstruction(Opcode.IREM);
+        public static final OperatorInstruction LREM  = new UnboundOperatorInstruction(Opcode.LREM);
+        public static final OperatorInstruction FREM  = new UnboundOperatorInstruction(Opcode.FREM);
+        public static final OperatorInstruction DREM  = new UnboundOperatorInstruction(Opcode.DREM);
+        public static final OperatorInstruction INEG  = new UnboundOperatorInstruction(Opcode.INEG);
+        public static final OperatorInstruction LNEG  = new UnboundOperatorInstruction(Opcode.LNEG);
+        public static final OperatorInstruction FNEG  = new UnboundOperatorInstruction(Opcode.FNEG);
+        public static final OperatorInstruction DNEG  = new UnboundOperatorInstruction(Opcode.DNEG);
+        public static final OperatorInstruction ISHL  = new UnboundOperatorInstruction(Opcode.ISHL);
+        public static final OperatorInstruction LSHL  = new UnboundOperatorInstruction(Opcode.LSHL);
+        public static final OperatorInstruction ISHR  = new UnboundOperatorInstruction(Opcode.ISHR);
+        public static final OperatorInstruction LSHR  = new UnboundOperatorInstruction(Opcode.LSHR);
+        public static final OperatorInstruction IUSHR = new UnboundOperatorInstruction(Opcode.IUSHR);
+        public static final OperatorInstruction LUSHR = new UnboundOperatorInstruction(Opcode.LUSHR);
+        public static final OperatorInstruction IAND  = new UnboundOperatorInstruction(Opcode.IAND);
+        public static final OperatorInstruction LAND  = new UnboundOperatorInstruction(Opcode.LAND);
+        public static final OperatorInstruction IOR   = new UnboundOperatorInstruction(Opcode.IOR);
+        public static final OperatorInstruction LOR   = new UnboundOperatorInstruction(Opcode.LOR);
+        public static final OperatorInstruction IXOR  = new UnboundOperatorInstruction(Opcode.IXOR);
+        public static final OperatorInstruction LXOR  = new UnboundOperatorInstruction(Opcode.LXOR);
+        public static final OperatorInstruction LCMP  = new UnboundOperatorInstruction(Opcode.LCMP);
+        public static final OperatorInstruction FCMPL = new UnboundOperatorInstruction(Opcode.FCMPL);
+        public static final OperatorInstruction FCMPG = new UnboundOperatorInstruction(Opcode.FCMPG);
+        public static final OperatorInstruction DCMPL = new UnboundOperatorInstruction(Opcode.DCMPL);
+        public static final OperatorInstruction DCMPG = new UnboundOperatorInstruction(Opcode.DCMPG);
+        public static final OperatorInstruction ARRAYLENGTH = new UnboundOperatorInstruction(Opcode.ARRAYLENGTH);
+
+        private UnboundOperatorInstruction(Opcode op) {
             super(op);
         }
 
@@ -1329,7 +1451,38 @@ public abstract sealed class AbstractInstruction
             extends UnboundInstruction implements ConstantInstruction.IntrinsicConstantInstruction {
         final ConstantDesc constant;
 
-        public UnboundIntrinsicConstantInstruction(Opcode op) {
+        public static final ConstantInstruction.IntrinsicConstantInstruction ACONST_NULL
+                = new UnboundIntrinsicConstantInstruction(Opcode.ACONST_NULL);
+        public static final ConstantInstruction.IntrinsicConstantInstruction ICONST_M1
+                = new UnboundIntrinsicConstantInstruction(Opcode.ICONST_M1);
+        public static final ConstantInstruction.IntrinsicConstantInstruction ICONST_0
+                = new UnboundIntrinsicConstantInstruction(Opcode.ICONST_0);
+        public static final ConstantInstruction.IntrinsicConstantInstruction ICONST_1
+                = new UnboundIntrinsicConstantInstruction(Opcode.ICONST_1);
+        public static final ConstantInstruction.IntrinsicConstantInstruction ICONST_2
+                = new UnboundIntrinsicConstantInstruction(Opcode.ICONST_2);
+        public static final ConstantInstruction.IntrinsicConstantInstruction ICONST_3
+                = new UnboundIntrinsicConstantInstruction(Opcode.ICONST_3);
+        public static final ConstantInstruction.IntrinsicConstantInstruction ICONST_4
+                = new UnboundIntrinsicConstantInstruction(Opcode.ICONST_4);
+        public static final ConstantInstruction.IntrinsicConstantInstruction ICONST_5
+                = new UnboundIntrinsicConstantInstruction(Opcode.ICONST_5);
+        public static final ConstantInstruction.IntrinsicConstantInstruction LCONST_0
+                = new UnboundIntrinsicConstantInstruction(Opcode.LCONST_0);
+        public static final ConstantInstruction.IntrinsicConstantInstruction LCONST_1
+                = new UnboundIntrinsicConstantInstruction(Opcode.LCONST_1);
+        public static final ConstantInstruction.IntrinsicConstantInstruction FCONST_0
+                = new UnboundIntrinsicConstantInstruction(Opcode.FCONST_0);
+        public static final ConstantInstruction.IntrinsicConstantInstruction FCONST_1
+                = new UnboundIntrinsicConstantInstruction(Opcode.FCONST_1);
+        public static final ConstantInstruction.IntrinsicConstantInstruction FCONST_2
+                = new UnboundIntrinsicConstantInstruction(Opcode.FCONST_2);
+        public static final ConstantInstruction.IntrinsicConstantInstruction DCONST_0
+                = new UnboundIntrinsicConstantInstruction(Opcode.DCONST_0);
+        public static final ConstantInstruction.IntrinsicConstantInstruction DCONST_1
+                = new UnboundIntrinsicConstantInstruction(Opcode.DCONST_1);
+
+        private UnboundIntrinsicConstantInstruction(Opcode op) {
             super(op);
             constant = op.constantValue();
         }
@@ -1403,7 +1556,10 @@ public abstract sealed class AbstractInstruction
     public static final class UnboundMonitorInstruction
             extends UnboundInstruction implements MonitorInstruction {
 
-        public UnboundMonitorInstruction(Opcode op) {
+        public static final MonitorInstruction MONITORENTER = new UnboundMonitorInstruction(Opcode.MONITORENTER);
+        public static final MonitorInstruction MONITOREXIT = new UnboundMonitorInstruction(Opcode.MONITOREXIT);
+
+        private UnboundMonitorInstruction(Opcode op) {
             super(op);
         }
 
@@ -1412,7 +1568,9 @@ public abstract sealed class AbstractInstruction
     public static final class UnboundNopInstruction
             extends UnboundInstruction implements NopInstruction {
 
-        public UnboundNopInstruction() {
+        public static final NopInstruction NOP = new UnboundNopInstruction();
+
+        private UnboundNopInstruction() {
             super(Opcode.NOP);
         }
 

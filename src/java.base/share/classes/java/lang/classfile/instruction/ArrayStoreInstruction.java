@@ -24,13 +24,13 @@
  */
 package java.lang.classfile.instruction;
 
+import java.lang.classfile.ClassFile;
 import java.lang.classfile.CodeElement;
 import java.lang.classfile.CodeModel;
 import java.lang.classfile.Instruction;
 import java.lang.classfile.Opcode;
 import java.lang.classfile.TypeKind;
 import jdk.internal.classfile.impl.AbstractInstruction;
-import jdk.internal.classfile.impl.Util;
 import jdk.internal.javac.PreviewFeature;
 
 /**
@@ -58,7 +58,16 @@ public sealed interface ArrayStoreInstruction extends Instruction
      *         {@link Opcode.Kind#ARRAY_STORE}.
      */
     static ArrayStoreInstruction of(Opcode op) {
-        Util.checkKind(op, Opcode.Kind.ARRAY_STORE);
-        return new AbstractInstruction.UnboundArrayStoreInstruction(op);
+        return switch (op.bytecode()) {
+            case ClassFile.IASTORE -> AbstractInstruction.UnboundArrayStoreInstruction.IASTORE;
+            case ClassFile.LASTORE -> AbstractInstruction.UnboundArrayStoreInstruction.LASTORE;
+            case ClassFile.FASTORE -> AbstractInstruction.UnboundArrayStoreInstruction.FASTORE;
+            case ClassFile.DASTORE -> AbstractInstruction.UnboundArrayStoreInstruction.DASTORE;
+            case ClassFile.AASTORE -> AbstractInstruction.UnboundArrayStoreInstruction.AASTORE;
+            case ClassFile.BASTORE -> AbstractInstruction.UnboundArrayStoreInstruction.BASTORE;
+            case ClassFile.CASTORE -> AbstractInstruction.UnboundArrayStoreInstruction.CASTORE;
+            case ClassFile.SASTORE -> AbstractInstruction.UnboundArrayStoreInstruction.SASTORE;
+            default -> throw new IllegalArgumentException("Unknown opcode specified " + op);
+        };
     }
 }

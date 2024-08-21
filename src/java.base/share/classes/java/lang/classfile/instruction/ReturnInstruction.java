@@ -31,9 +31,8 @@ import java.lang.classfile.Instruction;
 import java.lang.classfile.Opcode;
 import java.lang.classfile.TypeKind;
 import jdk.internal.classfile.impl.AbstractInstruction;
+import jdk.internal.classfile.impl.BytecodeHelpers;
 import jdk.internal.javac.PreviewFeature;
-
-import static jdk.internal.classfile.impl.AbstractInstruction.UnboundReturnInstruction.*;
 
 /**
  * Models a return-from-method instruction in the {@code code} array of a
@@ -58,14 +57,7 @@ public sealed interface ReturnInstruction extends Instruction
      * @param typeKind the type of the return instruction
      */
     static ReturnInstruction of(TypeKind typeKind) {
-        return switch (typeKind) {
-            case ByteType, ShortType, IntType, CharType, BooleanType -> IRETURN;
-            case FloatType -> FRETURN;
-            case LongType -> LRETURN;
-            case DoubleType -> DRETURN;
-            case ReferenceType -> ARETURN;
-            case VoidType -> RETURN;
-        };
+        return of(BytecodeHelpers.returnOpcode(typeKind));
     }
 
     /**
@@ -78,12 +70,12 @@ public sealed interface ReturnInstruction extends Instruction
      */
     static ReturnInstruction of(Opcode op) {
         return switch (op.bytecode()) {
-            case ClassFile.IRETURN -> IRETURN;
-            case ClassFile.LRETURN -> LRETURN;
-            case ClassFile.FRETURN -> FRETURN;
-            case ClassFile.DRETURN -> DRETURN;
-            case ClassFile.ARETURN -> ARETURN;
-            case ClassFile.RETURN -> RETURN;
+            case ClassFile.IRETURN -> AbstractInstruction.UnboundReturnInstruction.IRETURN;
+            case ClassFile.LRETURN -> AbstractInstruction.UnboundReturnInstruction.LRETURN;
+            case ClassFile.FRETURN -> AbstractInstruction.UnboundReturnInstruction.FRETURN;
+            case ClassFile.DRETURN -> AbstractInstruction.UnboundReturnInstruction.DRETURN;
+            case ClassFile.ARETURN -> AbstractInstruction.UnboundReturnInstruction.ARETURN;
+            case ClassFile.RETURN -> AbstractInstruction.UnboundReturnInstruction.RETURN;
             default -> throw new IllegalArgumentException("Unknown opcode specified " + op);
         };
     }

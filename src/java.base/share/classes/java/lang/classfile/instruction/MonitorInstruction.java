@@ -24,12 +24,12 @@
  */
 package java.lang.classfile.instruction;
 
+import java.lang.classfile.ClassFile;
 import java.lang.classfile.CodeElement;
 import java.lang.classfile.CodeModel;
 import java.lang.classfile.Instruction;
 import java.lang.classfile.Opcode;
 import jdk.internal.classfile.impl.AbstractInstruction;
-import jdk.internal.classfile.impl.Util;
 import jdk.internal.javac.PreviewFeature;
 
 /**
@@ -52,7 +52,10 @@ public sealed interface MonitorInstruction extends Instruction
      *         {@link Opcode.Kind#MONITOR}.
      */
     static MonitorInstruction of(Opcode op) {
-        Util.checkKind(op, Opcode.Kind.MONITOR);
-        return new AbstractInstruction.UnboundMonitorInstruction(op);
+        return switch (op.bytecode()) {
+            case ClassFile.MONITORENTER -> AbstractInstruction.UnboundMonitorInstruction.MONITORENTER;
+            case ClassFile.MONITOREXIT -> AbstractInstruction.UnboundMonitorInstruction.MONITOREXIT;
+            default -> throw new IllegalArgumentException("Unknown opcode specified " + op);
+        };
     }
 }

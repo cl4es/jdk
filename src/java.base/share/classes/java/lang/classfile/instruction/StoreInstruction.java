@@ -24,6 +24,7 @@
  */
 package java.lang.classfile.instruction;
 
+import java.lang.classfile.ClassFile;
 import java.lang.classfile.CodeElement;
 import java.lang.classfile.CodeModel;
 import java.lang.classfile.Instruction;
@@ -76,7 +77,31 @@ public sealed interface StoreInstruction extends Instruction
      *         {@link Opcode.Kind#STORE}.
      */
     static StoreInstruction of(Opcode op, int slot) {
-        Util.checkKind(op, Opcode.Kind.STORE);
-        return new AbstractInstruction.UnboundStoreInstruction(op, slot);
+        return switch (op.bytecode()) {
+            case ClassFile.ISTORE_0 -> AbstractInstruction.UnboundStoreInstruction.ISTORE_0;
+            case ClassFile.ISTORE_1 -> AbstractInstruction.UnboundStoreInstruction.ISTORE_1;
+            case ClassFile.ISTORE_2 -> AbstractInstruction.UnboundStoreInstruction.ISTORE_2;
+            case ClassFile.ISTORE_3 -> AbstractInstruction.UnboundStoreInstruction.ISTORE_3;
+            case ClassFile.LSTORE_0 -> AbstractInstruction.UnboundStoreInstruction.LSTORE_0;
+            case ClassFile.LSTORE_1 -> AbstractInstruction.UnboundStoreInstruction.LSTORE_1;
+            case ClassFile.LSTORE_2 -> AbstractInstruction.UnboundStoreInstruction.LSTORE_2;
+            case ClassFile.LSTORE_3 -> AbstractInstruction.UnboundStoreInstruction.LSTORE_3;
+            case ClassFile.FSTORE_0 -> AbstractInstruction.UnboundStoreInstruction.FSTORE_0;
+            case ClassFile.FSTORE_1 -> AbstractInstruction.UnboundStoreInstruction.FSTORE_1;
+            case ClassFile.FSTORE_2 -> AbstractInstruction.UnboundStoreInstruction.FSTORE_2;
+            case ClassFile.FSTORE_3 -> AbstractInstruction.UnboundStoreInstruction.FSTORE_3;
+            case ClassFile.DSTORE_0 -> AbstractInstruction.UnboundStoreInstruction.DSTORE_0;
+            case ClassFile.DSTORE_1 -> AbstractInstruction.UnboundStoreInstruction.DSTORE_1;
+            case ClassFile.DSTORE_2 -> AbstractInstruction.UnboundStoreInstruction.DSTORE_2;
+            case ClassFile.DSTORE_3 -> AbstractInstruction.UnboundStoreInstruction.DSTORE_3;
+            case ClassFile.ASTORE_0 -> AbstractInstruction.UnboundStoreInstruction.ASTORE_0;
+            case ClassFile.ASTORE_1 -> AbstractInstruction.UnboundStoreInstruction.ASTORE_1;
+            case ClassFile.ASTORE_2 -> AbstractInstruction.UnboundStoreInstruction.ASTORE_2;
+            case ClassFile.ASTORE_3 -> AbstractInstruction.UnboundStoreInstruction.ASTORE_3;
+            default -> {
+                Util.checkKind(op, Opcode.Kind.STORE);
+                yield new AbstractInstruction.UnboundStoreInstruction(op, slot);
+            }
+        };
     }
 }

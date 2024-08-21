@@ -30,6 +30,8 @@ import java.lang.classfile.Instruction;
 import jdk.internal.classfile.impl.AbstractInstruction;
 import jdk.internal.javac.PreviewFeature;
 
+import static jdk.internal.classfile.impl.AbstractInstruction.UnboundNopInstruction.NOP;
+
 /**
  * Models a {@code nop} invocation instruction in the {@code code}
  * array of a {@code Code} attribute.  Delivered as a {@link CodeElement}
@@ -44,6 +46,6 @@ public sealed interface NopInstruction extends Instruction
      * {@return a no-op instruction}
      */
     static NopInstruction of() {
-        return new AbstractInstruction.UnboundNopInstruction();
+        return NOP;
     }
 }

@@ -24,6 +24,7 @@
  */
 package java.lang.classfile.instruction;
 
+import java.lang.classfile.ClassFile;
 import java.lang.constant.ConstantDesc;
 
 import java.lang.classfile.CodeElement;
@@ -135,10 +136,24 @@ public sealed interface ConstantInstruction extends Instruction {
      *                                  with implicit value
      */
     static IntrinsicConstantInstruction ofIntrinsic(Opcode op) {
-        Util.checkKind(op, Opcode.Kind.CONSTANT);
-        if (op.constantValue() == null)
-            throw new IllegalArgumentException(String.format("Wrong opcode specified; found %s, expected xCONST_val", op));
-        return new AbstractInstruction.UnboundIntrinsicConstantInstruction(op);
+        return switch (op.bytecode()) {
+            case ClassFile.ACONST_NULL -> AbstractInstruction.UnboundIntrinsicConstantInstruction.ACONST_NULL;
+            case ClassFile.ICONST_M1 -> AbstractInstruction.UnboundIntrinsicConstantInstruction.ICONST_M1;
+            case ClassFile.ICONST_0 -> AbstractInstruction.UnboundIntrinsicConstantInstruction.ICONST_0;
+            case ClassFile.ICONST_1 -> AbstractInstruction.UnboundIntrinsicConstantInstruction.ICONST_1;
+            case ClassFile.ICONST_2 -> AbstractInstruction.UnboundIntrinsicConstantInstruction.ICONST_2;
+            case ClassFile.ICONST_3 -> AbstractInstruction.UnboundIntrinsicConstantInstruction.ICONST_3;
+            case ClassFile.ICONST_4 -> AbstractInstruction.UnboundIntrinsicConstantInstruction.ICONST_4;
+            case ClassFile.ICONST_5 -> AbstractInstruction.UnboundIntrinsicConstantInstruction.ICONST_5;
+            case ClassFile.LCONST_0 -> AbstractInstruction.UnboundIntrinsicConstantInstruction.LCONST_0;
+            case ClassFile.LCONST_1 -> AbstractInstruction.UnboundIntrinsicConstantInstruction.LCONST_1;
+            case ClassFile.FCONST_0 -> AbstractInstruction.UnboundIntrinsicConstantInstruction.FCONST_0;
+            case ClassFile.FCONST_1 -> AbstractInstruction.UnboundIntrinsicConstantInstruction.FCONST_1;
+            case ClassFile.FCONST_2 -> AbstractInstruction.UnboundIntrinsicConstantInstruction.FCONST_2;
+            case ClassFile.DCONST_0 -> AbstractInstruction.UnboundIntrinsicConstantInstruction.DCONST_0;
+            case ClassFile.DCONST_1 -> AbstractInstruction.UnboundIntrinsicConstantInstruction.DCONST_1;
+            default -> throw new IllegalArgumentException(String.format("Wrong opcode specified; found %s, expected xCONST_val", op));
+        };
     }
 
     /**

@@ -45,6 +45,6 @@ public sealed interface ThrowInstruction extends Instruction
      * {@return a throw instruction}
      */
     static ThrowInstruction of() {
-        return new AbstractInstruction.UnboundThrowInstruction();
+        return AbstractInstruction.UnboundThrowInstruction.ATHROW;
     }
 }
