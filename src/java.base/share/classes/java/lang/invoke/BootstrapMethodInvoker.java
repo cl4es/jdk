@@ -99,8 +99,8 @@ final class BootstrapMethodInvoker {
                 // with empty constant arguments?
                 if (isStringConcatFactoryBSM(bootstrapMethod.type())) {
                     result = (CallSite)bootstrapMethod
-                            .invokeExact(caller, name, (MethodType)type,
-                                         (String)info, new Object[0]);
+                            .invokeBasic((Object)caller, (Object)name, type,
+                                         info, new Object[0]);
                 } else {
                     info = maybeReBox(info);
                     if (type instanceof Class<?> c) {
@@ -131,23 +131,23 @@ final class BootstrapMethodInvoker {
                 MethodType bsmType = bootstrapMethod.type();
                 if (isLambdaMetafactoryIndyBSM(bsmType) && argv.length == 3) {
                     result = (CallSite)bootstrapMethod
-                            .invokeExact(caller, name, (MethodType)type, (MethodType)argv[0],
-                                    (MethodHandle)argv[1], (MethodType)argv[2]);
+                            .invokeBasic((Object)caller, (Object)name, type, argv[0],
+                                    argv[1], argv[2]);
                 } else if (isLambdaMetafactoryCondyBSM(bsmType) && argv.length == 3) {
                     result = bootstrapMethod
-                            .invokeExact(caller, name, (Class<?>)type, (MethodType)argv[0],
-                                    (MethodHandle)argv[1], (MethodType)argv[2]);
+                            .invokeBasic((Object)caller, (Object)name, type, argv[0],
+                                    argv[1], argv[2]);
                 } else if (isStringConcatFactoryBSM(bsmType) && argv.length >= 1) {
-                    String recipe = (String)argv[0];
+                    Object recipe = argv[0];
                     Object[] shiftedArgs = Arrays.copyOfRange(argv, 1, argv.length);
                     maybeReBoxElements(shiftedArgs);
-                    result = (CallSite)bootstrapMethod.invokeExact(caller, name, (MethodType)type, recipe, shiftedArgs);
+                    result = (CallSite)bootstrapMethod.invokeBasic((Object)caller, (Object)name, type, recipe, (Object)shiftedArgs);
                 } else if (isLambdaMetafactoryAltMetafactoryBSM(bsmType)) {
                     maybeReBoxElements(argv);
-                    result = (CallSite)bootstrapMethod.invokeExact(caller, name, (MethodType)type, argv);
+                    result = (CallSite)bootstrapMethod.invokeBasic((Object)caller, (Object)name, type, (Object)argv);
                 } else if (isObjectMethodsBootstrapBSM(bsmType)) {
                     MethodHandle[] mhs = Arrays.copyOfRange(argv, 2, argv.length, MethodHandle[].class);
-                    result = bootstrapMethod.invokeExact(caller, name, (TypeDescriptor)type, (Class<?>)argv[0], (String)argv[1], mhs);
+                    result = bootstrapMethod.invokeBasic((Object)caller, (Object)name, type, argv[0], argv[1], (Object)mhs);
                 } else {
                     maybeReBoxElements(argv);
                     if (type instanceof Class<?> c) {
