@@ -732,14 +732,14 @@ public class ClassWriter extends BasicWriter {
 
     /**
      * Get the value of an entry in the constant pool as a Java constant.
-     * Characters and booleans are represented by CONSTANT_Intgere entries.
+     * Characters and booleans are represented by CONSTANT_Integer entries.
      * Character and string values are processed to escape characters outside
      * the basic printable ASCII set.
      * @param d the descriptor, giving the expected type of the constant
      * @param index the index of the value in the constant pool
      * @return a printable string containing the value of the constant.
      */
-    String getConstantValue(ClassDesc d, ConstantValueEntry cpInfo) {
+    String getConstantValue(ClassDesc d, LoadableConstantEntry cpInfo) {
         switch (cpInfo.tag()) {
             case ClassFile.TAG_INTEGER: {
                 var val = (Integer)cpInfo.constantValue();
