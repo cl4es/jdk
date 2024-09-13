@@ -24,10 +24,11 @@
  */
 package java.lang.classfile.attribute;
 
+import java.lang.classfile.constantpool.LoadableConstantEntry;
 import java.lang.constant.ConstantDesc;
 import java.lang.classfile.Attribute;
 import java.lang.classfile.FieldElement;
-import java.lang.classfile.constantpool.ConstantValueEntry;
+
 import jdk.internal.classfile.impl.BoundAttribute;
 import jdk.internal.classfile.impl.TemporaryConstantPool;
 import jdk.internal.classfile.impl.UnboundAttribute;
@@ -54,13 +55,13 @@ public sealed interface ConstantValueAttribute
     /**
      * {@return the constant value of the field}
      */
-    ConstantValueEntry constant();
+    LoadableConstantEntry constant();
 
     /**
      * {@return a {@code ConstantValue} attribute}
      * @param value the constant value
      */
-    static ConstantValueAttribute of(ConstantValueEntry value) {
+    static ConstantValueAttribute of(LoadableConstantEntry value) {
         return new UnboundAttribute.UnboundConstantValueAttribute(value);
     }
 

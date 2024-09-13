@@ -470,21 +470,6 @@ public sealed interface ConstantPoolBuilder
     }
 
     /**
-     * {@return A {@link ConstantValueEntry} descripbing the provided
-     * Integer, Long, Float, Double, or String constant}
-     *
-     * @param c the constant
-     */
-    default ConstantValueEntry constantValueEntry(ConstantDesc c) {
-        if (c instanceof Integer i) return intEntry(i);
-        if (c instanceof String s) return stringEntry(s);
-        if (c instanceof Long l) return longEntry(l);
-        if (c instanceof Float f) return floatEntry(f);
-        if (c instanceof Double d) return doubleEntry(d);
-        throw new IllegalArgumentException("Illegal type: " + (c == null ? null : c.getClass()));
-    }
-
-    /**
      * {@return A {@link LoadableConstantEntry} describing the provided
      * constant}  The constant should be an Integer, String, Long, Float,
      * Double, ClassDesc (for a Class constant), MethodTypeDesc (for a MethodType

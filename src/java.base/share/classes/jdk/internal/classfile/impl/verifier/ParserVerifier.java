@@ -228,7 +228,7 @@ public record ParserVerifier(ClassModel classModel) {
             }
             case ConstantValueAttribute cva -> {
                 ClassDesc type = ((FieldModel)ae).fieldTypeSymbol();
-                ConstantValueEntry cve = cva.constant();
+                LoadableConstantEntry cve = cva.constant();
                 if (!switch (TypeKind.from(type)) {
                     case BOOLEAN, BYTE, CHAR, INT, SHORT -> cve instanceof IntegerEntry;
                     case DOUBLE -> cve instanceof DoubleEntry;

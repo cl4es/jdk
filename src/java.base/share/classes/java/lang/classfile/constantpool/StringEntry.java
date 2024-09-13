@@ -36,7 +36,7 @@ import jdk.internal.javac.PreviewFeature;
  */
 @PreviewFeature(feature = PreviewFeature.Feature.CLASSFILE_API)
 public sealed interface StringEntry
-        extends ConstantValueEntry
+        extends LoadableConstantEntry
         permits AbstractPoolEntry.StringEntryImpl {
     /**
      * {@return the UTF constant pool entry describing the string contents}

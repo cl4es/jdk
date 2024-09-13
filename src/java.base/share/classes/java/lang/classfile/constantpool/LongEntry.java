@@ -37,7 +37,7 @@ import jdk.internal.javac.PreviewFeature;
  */
 @PreviewFeature(feature = PreviewFeature.Feature.CLASSFILE_API)
 public sealed interface LongEntry
-        extends AnnotationConstantValueEntry, ConstantValueEntry
+        extends AnnotationConstantValueEntry, LoadableConstantEntry
         permits AbstractPoolEntry.LongEntryImpl {
 
     /**

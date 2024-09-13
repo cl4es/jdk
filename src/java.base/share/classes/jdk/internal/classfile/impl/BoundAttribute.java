@@ -29,7 +29,6 @@ import java.lang.classfile.*;
 import java.lang.classfile.attribute.*;
 import java.lang.classfile.constantpool.ClassEntry;
 import java.lang.classfile.constantpool.ConstantPool;
-import java.lang.classfile.constantpool.ConstantValueEntry;
 import java.lang.classfile.constantpool.LoadableConstantEntry;
 import java.lang.classfile.constantpool.ModuleEntry;
 import java.lang.classfile.constantpool.NameAndTypeEntry;
@@ -493,8 +492,8 @@ public abstract sealed class BoundAttribute<T extends Attribute<T>>
         }
 
         @Override
-        public ConstantValueEntry constant() {
-            return classReader.readEntry(payloadStart, ConstantValueEntry.class);
+        public LoadableConstantEntry constant() {
+            return classReader.readEntry(payloadStart, LoadableConstantEntry.class);
         }
 
     }

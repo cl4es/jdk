@@ -37,7 +37,7 @@ import jdk.internal.javac.PreviewFeature;
  */
 @PreviewFeature(feature = PreviewFeature.Feature.CLASSFILE_API)
 public sealed interface LoadableConstantEntry extends PoolEntry
-        permits ClassEntry, ConstantDynamicEntry, ConstantValueEntry, MethodHandleEntry, MethodTypeEntry {
+        permits ClassEntry, ConstantDynamicEntry, MethodHandleEntry, MethodTypeEntry, DoubleEntry, FloatEntry, IntegerEntry, LongEntry, StringEntry {
 
     /**
      * {@return the constant described by this entry}

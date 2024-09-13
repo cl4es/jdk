@@ -24,6 +24,7 @@
  */
 package jdk.internal.classfile.impl;
 
+import java.lang.classfile.constantpool.LoadableConstantEntry;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -84,7 +85,6 @@ import java.lang.classfile.attribute.SourceIDAttribute;
 import java.lang.classfile.attribute.StackMapTableAttribute;
 import java.lang.classfile.attribute.StackMapFrameInfo;
 import java.lang.classfile.attribute.SyntheticAttribute;
-import java.lang.classfile.constantpool.ConstantValueEntry;
 import java.lang.classfile.constantpool.ModuleEntry;
 import java.lang.classfile.constantpool.NameAndTypeEntry;
 import java.lang.classfile.constantpool.PackageEntry;
@@ -145,15 +145,15 @@ public abstract sealed class UnboundAttribute<T extends Attribute<T>>
             extends UnboundAttribute<ConstantValueAttribute>
             implements ConstantValueAttribute {
 
-        private final ConstantValueEntry entry;
+        private final LoadableConstantEntry entry;
 
-        public UnboundConstantValueAttribute(ConstantValueEntry entry) {
+        public UnboundConstantValueAttribute(LoadableConstantEntry entry) {
             super(Attributes.constantValue());
             this.entry = entry;
         }
 
         @Override
-        public ConstantValueEntry constant() {
+        public LoadableConstantEntry constant() {
             return entry;
         }
 
