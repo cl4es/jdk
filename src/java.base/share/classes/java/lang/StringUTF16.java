@@ -433,9 +433,29 @@ final class StringUTF16 {
         return result;
     }
 
+    private static final Unsafe U = Unsafe.getUnsafe();
+
+    /*
+     * For startup/warmup, using Unsafe.copyMemory to copy pays off, though
+     * setup overheads are non-trivial, so it's better to use a scalar loop
+     * up to some threshold.
+     */
+    private static final int COPY_THRESHOLD = 32;
+
     @IntrinsicCandidate
     public static void getChars(byte[] value, int srcBegin, int srcEnd, char[] dst, int dstBegin) {
-        U.copyMemory(value, Unsafe.ARRAY_BYTE_BASE_OFFSET + (srcBegin << 1), dst, Unsafe.ARRAY_CHAR_BASE_OFFSET + (dstBegin << 1), (srcEnd - srcBegin) << 1);
+        // We need a range check here because 'getChar' has no checks
+        int len = srcEnd - srcBegin;
+        if (srcBegin < srcEnd) {
+            checkBoundsOffCount(srcBegin, len, value);
+        }
+        if (len < COPY_THRESHOLD) {
+            for (int i = srcBegin; i < srcEnd; i++) {
+                dst[dstBegin++] = getChar(value, i);
+            }
+        } else {
+            U.copyMemory(value, Unsafe.ARRAY_BYTE_BASE_OFFSET + (srcBegin << 1), dst, Unsafe.ARRAY_CHAR_BASE_OFFSET + (dstBegin << 1), (srcEnd - srcBegin) << 1);
+        }
     }
 
     /* @see java.lang.String.getBytes(int, int, byte[], int) */
@@ -1652,11 +1672,8 @@ final class StringUTF16 {
 
     private static final int HI_BYTE_SHIFT;
     private static final int LO_BYTE_SHIFT;
-
-    private static final Unsafe U = Unsafe.getUnsafe();
-
     static {
-        if (U.isBigEndian()) {
+        if (Unsafe.getUnsafe().isBigEndian()) {
             HI_BYTE_SHIFT = 8;
             LO_BYTE_SHIFT = 0;
         } else {

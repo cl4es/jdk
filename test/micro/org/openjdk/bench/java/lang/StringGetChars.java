@@ -38,34 +38,17 @@ public class StringGetChars {
 
     // Reduced by default to only UTF-8, previous coverage:
     // @Param({"US-ASCII", "ISO-8859-1", "UTF-8", "MS932", "ISO-8859-6", "ISO-2022-KR"})
-    @Param({"UTF-8"})
-    private String charsetName;
+    @Param({"1", "31", "64", "127", "4096"})
+    private int size;
 
     private char[] chars;
     private String asciiString;
-    private String longAsciiString;
     private String utf16String;
-    private String longUtf16String;
-
-    private static final String LOREM = """
-             Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aliquam ac sem eu
-             urna egestas placerat. Etiam finibus ipsum nulla, non mattis dolor cursus a.
-             Nulla nec nisl consectetur, lacinia neque id, accumsan ante. Curabitur et
-             sapien in magna porta ultricies. Sed vel pellentesque nibh. Pellentesque dictum
-             dignissim diam eu ultricies. Class aptent taciti sociosqu ad litora torquent
-             per conubia nostra, per inceptos himenaeos. Suspendisse erat diam, fringilla
-             sed massa sed, posuere viverra orci. Suspendisse tempor libero non gravida
-             efficitur. Vivamus lacinia risus non orci viverra, at consectetur odio laoreet.
-             Suspendisse potenti.""";
-    private static final String UTF16_STRING = "\uFF11".repeat(31);
 
     @Setup
     public void setup() {
-        asciiString = LOREM.substring(0, 32);
-        longAsciiString = LOREM.repeat(200);
-        utf16String = UTF16_STRING;
-        longUtf16String = "\uFF11".repeat(LOREM.length() / 2).repeat(200);
-        int size = Math.max(longAsciiString.length(), longUtf16String.length());
+        asciiString = "a".repeat(size);
+        utf16String = "\uFF11".repeat(size);
         chars = new char[size];
     }
 
@@ -78,24 +61,8 @@ public class StringGetChars {
 
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
-    public char[] getCharsAsciiLong() throws Exception {
-        longAsciiString.getChars(0, longAsciiString.length(), chars, 0);
-        return chars;
-    }
-
-    @Benchmark
-    @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public char[] getCharsUTF16() throws Exception {
         utf16String.getChars(0, utf16String.length(), chars, 0);
         return chars;
     }
-
-    @Benchmark
-    @CompilerControl(CompilerControl.Mode.DONT_INLINE)
-    public char[] getCharsUTF16Long() throws Exception {
-        longUtf16String.getChars(0, longUtf16String.length(), chars, 0);
-        return chars;
-    }
-
-
 }
