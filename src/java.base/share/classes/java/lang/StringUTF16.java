@@ -435,10 +435,6 @@ final class StringUTF16 {
 
     @IntrinsicCandidate
     public static void getChars(byte[] value, int srcBegin, int srcEnd, char[] dst, int dstBegin) {
-        // We need a range check here because 'getChar' has no checks
-        if (srcBegin < srcEnd) {
-            checkBoundsOffCount(srcBegin, srcEnd - srcBegin, value);
-        }
         U.copyMemory(value, Unsafe.ARRAY_BYTE_BASE_OFFSET + (srcBegin << 1), dst, Unsafe.ARRAY_CHAR_BASE_OFFSET + (dstBegin << 1), (srcEnd - srcBegin) << 1);
     }
 
