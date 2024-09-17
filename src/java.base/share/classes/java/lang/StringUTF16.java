@@ -439,9 +439,7 @@ final class StringUTF16 {
         if (srcBegin < srcEnd) {
             checkBoundsOffCount(srcBegin, srcEnd - srcBegin, value);
         }
-        for (int i = srcBegin; i < srcEnd; i++) {
-            dst[dstBegin++] = getChar(value, i);
-        }
+        U.copyMemory(value, Unsafe.ARRAY_BYTE_BASE_OFFSET + (srcBegin << 1), dst, Unsafe.ARRAY_CHAR_BASE_OFFSET + (dstBegin << 1), (srcEnd - srcBegin) << 1);
     }
 
     /* @see java.lang.String.getBytes(int, int, byte[], int) */
@@ -1658,8 +1656,11 @@ final class StringUTF16 {
 
     private static final int HI_BYTE_SHIFT;
     private static final int LO_BYTE_SHIFT;
+
+    private static final Unsafe U = Unsafe.getUnsafe();
+
     static {
-        if (Unsafe.getUnsafe().isBigEndian()) {
+        if (U.isBigEndian()) {
             HI_BYTE_SHIFT = 8;
             LO_BYTE_SHIFT = 0;
         } else {
