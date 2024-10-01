@@ -547,8 +547,7 @@ public class ZipFile implements ZipConstants, Closeable {
                 if (!hasNext()) {
                     throw new NoSuchElementException();
                 }
-                // each "entry" has 3 ints in table entries
-                int pos = res.zsrc.getEntryPos(i++ * 3);
+                int pos = res.zsrc.getEntryPos(i++);
                 return (T)getZipEntry(getEntryName(pos), pos);
             }
         }
@@ -598,7 +597,7 @@ public class ZipFile implements ZipConstants, Closeable {
             if (index >= 0 && index < fence) {
                 synchronized (ZipFile.this) {
                     ensureOpen();
-                    action.accept(gen.apply(res.zsrc.getEntryPos(index++ * 3)));
+                    action.accept(gen.apply(res.zsrc.getEntryPos(index++)));
                 }
                 return true;
             }
@@ -1262,11 +1261,11 @@ public class ZipFile implements ZipConstants, Closeable {
                 int hash = zcp.checkedHash(cen, entryPos, nlen);
                 int hsh = (hash & 0x7fffffff) % tablelen;
                 int next = table[hsh];
-                table[hsh] = index;
+                table[hsh] = index + 1;
                 // Record the CEN offset and the name hash in our hash cell.
-                entries[index++] = hash;
-                entries[index++] = next;
-                entries[index  ] = pos;
+                entries[index] = hash;
+                entries[index + 1] = next;
+                entries[index + 2] = pos;
                 // Validate comment if it exists.
                 // If the bytes representing the comment cannot be converted to
                 // a String via zcp.toString, an Exception will be thrown
@@ -1442,10 +1441,13 @@ public class ZipFile implements ZipConstants, Closeable {
             return expectedBlockSize == blockSize;
 
         }
-        private int getEntryHash(int index) { return entries[index]; }
-        private int getEntryNext(int index) { return entries[index + 1]; }
-        private int getEntryPos(int index)  { return entries[index + 2]; }
-        private static final int ZIP_ENDCHAIN  = -1;
+
+        /**
+         * @param index the entry index, in the range 0 (inclusive) to total (exclusive).
+         * @return the CEN offset of the entry
+         */
+        private int getEntryPos(int index)  { return entries[index * 3 + 2]; }
+        private static final int ZIP_ENDCHAIN  = 0;
         private int total;                   // total number of entries
         private int[] table;                 // Hash chain heads: indexes into entries
         private int tablelen;                // number of hash heads
@@ -1758,8 +1760,6 @@ public class ZipFile implements ZipConstants, Closeable {
             int[] table = new int[tablelen];
             this.table = table;
 
-            Arrays.fill(table, ZIP_ENDCHAIN);
-
             // list for all meta entries
             ArrayList<Integer> signatureNames = null;
             // Set of all version numbers seen in META-INF/versions/
@@ -1861,10 +1861,14 @@ public class ZipFile implements ZipConstants, Closeable {
 
             // Search down the target hash chain for a entry whose
             // 32 bit hash matches the hashed name.
+            int[] entries = this.entries;
             while (idx != ZIP_ENDCHAIN) {
-                if (getEntryHash(idx) == hsh) {
-
-                    int pos = getEntryPos(idx);
+                // for idx in 1, 4, 7, ...:
+                // entries[idx - 1] is the hash,
+                // entries[idx] is the next position (or 0 if there's no next element)
+                // entries[idx + 1] is CEN pos
+                if (entries[idx - 1] == hsh) {
+                    int pos = entries[idx + 1];
                     int noff = pos + CENHDR;
                     int nlen = CENNAM(cen, pos);
 
@@ -1884,7 +1888,8 @@ public class ZipFile implements ZipConstants, Closeable {
                             // Hash collision, continue searching
                     }
                 }
-                idx = getEntryNext(idx);
+                // No match, get next element in the hash chain
+                idx = entries[idx];
             }
             // Reaching this point means we did not find "name".
             // Return the position of "name/" if we found it
