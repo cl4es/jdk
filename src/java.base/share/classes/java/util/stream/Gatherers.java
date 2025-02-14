@@ -505,17 +505,11 @@ public final class Gatherers {
             @Override BinaryOperator<A> combiner,
             @Override BiConsumer<A, Downstream<? super R>> finisher) implements Gatherer<T, A, R> {
 
-        static <T, A, R> GathererImpl<T, A, R> of(
-                Supplier<A> initializer,
-                Integrator<A, T, R> integrator,
-                BinaryOperator<A> combiner,
-                BiConsumer<A, Downstream<? super R>> finisher) {
-            return new GathererImpl<>(
-                    Objects.requireNonNull(initializer,"initializer"),
-                    Objects.requireNonNull(integrator, "integrator"),
-                    Objects.requireNonNull(combiner, "combiner"),
-                    Objects.requireNonNull(finisher, "finisher")
-            );
+        GathererImpl {
+            Objects.requireNonNull(initializer,"initializer");
+            Objects.requireNonNull(integrator, "integrator");
+            Objects.requireNonNull(combiner, "combiner");
+            Objects.requireNonNull(finisher, "finisher");
         }
     }
 

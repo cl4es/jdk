@@ -55,13 +55,42 @@ final class GathererOp<T, A, R> extends ReferencePipeline<T, R> {
         // When attaching a gather-operation onto another gather-operation,
         // we can fuse them into one
         if (upstream.getClass() == GathererOp.class) {
+            var g = ((GathererOp<P_IN, Object, P_OUT>) upstream).gatherer.andThen(gatherer);
             return new GathererOp<>(
-                    ((GathererOp<P_IN, Object, P_OUT>) upstream).gatherer.andThen(gatherer),
-                    (GathererOp<?, ?, P_IN>) upstream);
+                    g,
+                    (GathererOp<?, ?, P_IN>) upstream,
+                    opFlagsFor(g.integrator()),
+                    true);
         } else {
             return new GathererOp<>(
                     (ReferencePipeline<?, T>) upstream,
-                    gatherer);
+                    gatherer,
+                    opFlagsFor(gatherer.integrator()),
+                    true);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    static <P_IN, P_OUT extends T, T, A, R> Stream<R> of(
+        ReferencePipeline<P_IN, P_OUT> upstream,
+        Gatherer<T, A, R> gatherer,
+        int explicitOpFlags,
+        boolean isStateful) {
+        // When attaching a gather-operation onto another gather-operation,
+        // we can fuse them into one
+        if (upstream.getClass() == GathererOp.class) {
+            return new GathererOp<>(
+                ((GathererOp<P_IN, Object, P_OUT>)upstream).gatherer.andThen(gatherer),
+                (GathererOp<?, ?, P_IN>) upstream,
+                explicitOpFlags,
+                isStateful
+                );
+        } else {
+            return new GathererOp<>(
+                (ReferencePipeline<?, T>) upstream,
+                gatherer,
+                explicitOpFlags,
+                isStateful);
         }
     }
 
@@ -216,28 +245,31 @@ final class GathererOp<T, A, R> extends ReferencePipeline<T, R> {
             DEFAULT_FLAGS;
 
     final Gatherer<T, A, R> gatherer;
+    final boolean isStateful;
 
-    /*
-     * This constructor is used for initial .gather() invocations
-     */
-    private GathererOp(ReferencePipeline<?, T> upstream, Gatherer<T, A, R> gatherer) {
-        /* TODO this is a prime spot for pre-super calls to make sure that
-         * we only need to call `integrator()` once.
-         */
-        super(upstream, opFlagsFor(gatherer.integrator()));
+    private GathererOp(ReferencePipeline<?, T> upstream, Gatherer<T, A, R> gatherer,
+                       int explicitOpFlags, boolean isStateful) {
+        super(upstream, explicitOpFlags);
         this.gatherer = gatherer;
+        this.isStateful = isStateful;
+
+//        System.out.println("GathererOp: " + isStateful + " " + getStreamAndOpFlags());
     }
 
-    /*
-     * This constructor is used when fusing subsequent .gather() invocations
-     */
     @SuppressWarnings("unchecked")
-    private GathererOp(Gatherer<T, A, R> gatherer, GathererOp<?, ?, T> upstream) {
-        super((AbstractPipeline<?, T, ?>) upstream.upstream(),
-              upstream,
-              opFlagsFor(gatherer.integrator()));
+    private GathererOp(Gatherer<T, A, R> gatherer, GathererOp<?, ?, T> upstream,
+                       int explicitOpFlags, boolean isStateful) {
+        super(
+            (AbstractPipeline<?, T, ?>) upstream.upstream(),
+            upstream,
+            StreamOpFlag.combineOpFlags(explicitOpFlags, upstream.getStreamAndOpFlags())
+        );
         this.gatherer = gatherer;
+        this.isStateful = upstream.isStateful || isStateful;
+
+//        System.out.println("GathererOp: " + isStateful + " " + getStreamAndOpFlags());
     }
+
 
     /* This allows internal access to the previous stage,
      * to be able to fuse `gather` followed by `collect`.
@@ -248,15 +280,7 @@ final class GathererOp<T, A, R> extends ReferencePipeline<T, R> {
     }
 
     @Override
-    boolean opIsStateful() {
-        // TODO
-        /* Currently GathererOp is always stateful, but what could be tried is:
-         * return gatherer.initializer() != Gatherer.defaultInitializer()
-         *     || gatherer.combiner() == Gatherer.defaultCombiner()
-         *     || gatherer.finisher() != Gatherer.defaultFinisher();
-         */
-        return true;
-    }
+    boolean opIsStateful() { return isStateful; }
 
     @Override
     Sink<T> opWrapSink(int flags, Sink<R> downstream) {
@@ -307,6 +331,7 @@ final class GathererOp<T, A, R> extends ReferencePipeline<T, R> {
         linkOrConsume(); // Important for structural integrity
         final var parallel = isParallel();
         final var u = upstream();
+        // TODO investigate an unordered parallel mode for CONCURRENT Collectors?
         return evaluate(
             u.wrapSpliterator(u.sourceSpliterator(0)),
             parallel,
@@ -315,8 +340,8 @@ final class GathererOp<T, A, R> extends ReferencePipeline<T, R> {
             c.accumulator(),
             parallel ? c.combiner() : null,
             c.characteristics().contains(Collector.Characteristics.IDENTITY_FINISH)
-                    ? null
-                    : c.finisher()
+                ? null
+                : c.finisher()
         );
     }
 

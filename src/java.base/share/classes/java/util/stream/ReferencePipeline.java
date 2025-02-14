@@ -181,42 +181,24 @@ abstract class ReferencePipeline<P_IN, P_OUT>
     @Override
     public final Stream<P_OUT> filter(Predicate<? super P_OUT> predicate) {
         Objects.requireNonNull(predicate);
-        return new StatelessOp<>(this, StreamShape.REFERENCE,
-                StreamOpFlag.NOT_SIZED) {
-            @Override
-            Sink<P_OUT> opWrapSink(int flags, Sink<P_OUT> sink) {
-                return new Sink.ChainedReference<>(sink) {
-                    @Override
-                    public void begin(long size) {
-                        downstream.begin(-1);
-                    }
-
-                    @Override
-                    public void accept(P_OUT u) {
-                        if (predicate.test(u))
-                            downstream.accept(u);
-                    }
-                };
-            }
-        };
+        return GathererOp.of(
+            this,
+            Gatherer.of(Gatherer.Integrator.ofGreedy((v, e, d) -> !predicate.test(e) || d.push(e))),
+            StreamOpFlag.NOT_SIZED,
+            false
+        );
     }
 
     @Override
     @SuppressWarnings("unchecked")
     public final <R> Stream<R> map(Function<? super P_OUT, ? extends R> mapper) {
         Objects.requireNonNull(mapper);
-        return new StatelessOp<>(this, StreamShape.REFERENCE,
-                StreamOpFlag.NOT_SORTED | StreamOpFlag.NOT_DISTINCT) {
-            @Override
-            Sink<P_OUT> opWrapSink(int flags, Sink<R> sink) {
-                return new Sink.ChainedReference<>(sink) {
-                    @Override
-                    public void accept(P_OUT u) {
-                        downstream.accept(mapper.apply(u));
-                    }
-                };
-            }
-        };
+        return GathererOp.of(
+            this,
+            Gatherer.of(Gatherer.Integrator.ofGreedy((v, e, d) -> d.push(mapper.apply(e)))),
+            StreamOpFlag.NOT_SORTED | StreamOpFlag.NOT_DISTINCT,
+            false
+        );
     }
 
     @Override
@@ -273,47 +255,18 @@ abstract class ReferencePipeline<P_IN, P_OUT>
     @Override
     public final <R> Stream<R> flatMap(Function<? super P_OUT, ? extends Stream<? extends R>> mapper) {
         Objects.requireNonNull(mapper);
-        return new StatelessOp<>(this, StreamShape.REFERENCE,
-                StreamOpFlag.NOT_SORTED | StreamOpFlag.NOT_DISTINCT | StreamOpFlag.NOT_SIZED) {
-            @Override
-            Sink<P_OUT> opWrapSink(int flags, Sink<R> sink) {
-                boolean shorts = isShortCircuitingPipeline();
-                final class FlatMap implements Sink<P_OUT>, Predicate<R> {
-                    boolean cancel;
-
-                    @Override public void begin(long size) { sink.begin(-1); }
-                    @Override public void end() { sink.end(); }
-
-                    @Override
-                    public void accept(P_OUT e) {
-                        try (Stream<? extends R> result = mapper.apply(e)) {
-                            if (result != null) {
-                                if (shorts)
-                                    result.sequential().allMatch(this);
-                                else
-                                    result.sequential().forEach(sink);
-                            }
-                        }
-                    }
-
-                    @Override
-                    public boolean cancellationRequested() {
-                        return cancel || (cancel |= sink.cancellationRequested());
-                    }
-
-                    @Override
-                    public boolean test(R output) {
-                        if (!cancel) {
-                            sink.accept(output);
-                            return !(cancel |= sink.cancellationRequested());
-                        } else {
-                            return false;
-                        }
+        return GathererOp.of(
+            this,
+            Gatherer.of(Gatherer.Integrator.ofGreedy(
+                (v, e, d) -> {
+                    try (var result = mapper.apply(e)) {
+                        return result == null || result.sequential().allMatch(d::push);
                     }
                 }
-                return new FlatMap();
-            }
-        };
+            )),
+            StreamOpFlag.NOT_SORTED | StreamOpFlag.NOT_DISTINCT | StreamOpFlag.NOT_SIZED,
+            false
+        );
     }
 
     @Override
@@ -473,25 +426,18 @@ abstract class ReferencePipeline<P_IN, P_OUT>
     @Override
     public final <R> Stream<R> mapMulti(BiConsumer<? super P_OUT, ? super Consumer<R>> mapper) {
         Objects.requireNonNull(mapper);
-        return new StatelessOp<>(this, StreamShape.REFERENCE,
-                StreamOpFlag.NOT_SORTED | StreamOpFlag.NOT_DISTINCT | StreamOpFlag.NOT_SIZED) {
-            @Override
-            Sink<P_OUT> opWrapSink(int flags, Sink<R> sink) {
-                return new Sink.ChainedReference<>(sink) {
-
-                    @Override
-                    public void begin(long size) {
-                        downstream.begin(-1);
-                    }
-
-                    @Override
-                    @SuppressWarnings("unchecked")
-                    public void accept(P_OUT u) {
-                        mapper.accept(u, (Consumer<R>) downstream);
-                    }
-                };
-            }
-        };
+        return GathererOp.of(
+            this,
+            Gatherer.of(Gatherer.Integrator.ofGreedy(
+                (v, e, d) -> {
+                    Consumer<R> c = d::push;
+                    mapper.accept(e, c);
+                    return true;
+                }
+            )),
+            StreamOpFlag.NOT_SORTED | StreamOpFlag.NOT_DISTINCT | StreamOpFlag.NOT_SIZED,
+            false
+        );
     }
 
     @Override
@@ -570,19 +516,17 @@ abstract class ReferencePipeline<P_IN, P_OUT>
     @Override
     public final Stream<P_OUT> peek(Consumer<? super P_OUT> action) {
         Objects.requireNonNull(action);
-        return new StatelessOp<>(this, StreamShape.REFERENCE,
-                0) {
-            @Override
-            Sink<P_OUT> opWrapSink(int flags, Sink<P_OUT> sink) {
-                return new Sink.ChainedReference<>(sink) {
-                    @Override
-                    public void accept(P_OUT u) {
-                        action.accept(u);
-                        downstream.accept(u);
-                    }
-                };
-            }
-        };
+        return GathererOp.of(
+            this,
+            Gatherer.of(Gatherer.Integrator.ofGreedy(
+                (v, e, d) -> {
+                    action.accept(e);
+                    return d.push(e);
+                }
+            )),
+            0,
+            false
+        );
     }
 
     // Stateful intermediate operations from Stream

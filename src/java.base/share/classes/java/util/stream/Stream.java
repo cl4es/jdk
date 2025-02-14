@@ -1450,6 +1450,17 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
     }
 
     /**
+     * YOU WERE WARNED
+     * @param spliterator bits of horrors
+     * @return horrors
+     * @param <T> kind of horrors
+     */
+    public static<T> Stream<T> gStream(Spliterator<? extends T> spliterator) {
+        Objects.requireNonNull(spliterator, "spliterator");
+        return new GStream.OfRef<>(spliterator);
+    }
+
+    /**
      * Returns a sequential {@code Stream} containing a single element, if
      * non-null, otherwise returns an empty {@code Stream}.
      *

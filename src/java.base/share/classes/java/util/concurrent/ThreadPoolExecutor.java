@@ -851,13 +851,17 @@ public class ThreadPoolExecutor extends AbstractExecutorService {
             if (runStateAtLeast(c, SHUTDOWN)
                 && (runStateAtLeast(c, STOP)
                     || firstTask != null
-                    || workQueue.isEmpty()))
+                    || workQueue.isEmpty())) {
+                System.out.println("no new worker!");
                 return false;
+            }
 
             for (;;) {
                 if (workerCountOf(c)
-                    >= ((core ? corePoolSize : maximumPoolSize) & COUNT_MASK))
+                    >= ((core ? corePoolSize : maximumPoolSize) & COUNT_MASK)) {
+                    System.out.println("too many workers!");
                     return false;
+                }
                 if (compareAndIncrementWorkerCount(c))
                     break retry;
                 c = ctl.get();  // Re-read ctl
@@ -915,6 +919,7 @@ public class ThreadPoolExecutor extends AbstractExecutorService {
      *   worker was holding up termination
      */
     private void addWorkerFailed(Worker w) {
+        System.out.println("addWorkerFailed!");
         final ReentrantLock mainLock = this.mainLock;
         mainLock.lock();
         try {

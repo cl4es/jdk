@@ -468,10 +468,10 @@ public interface Gatherer<T, A, R> {
             BinaryOperator<A> combiner,
             BiConsumer<A, Downstream<? super R>> finisher) {
         return new Gatherers.GathererImpl<>(
-                Objects.requireNonNull(initializer),
-                Objects.requireNonNull(integrator),
-                Objects.requireNonNull(combiner),
-                Objects.requireNonNull(finisher)
+            initializer,
+            integrator,
+            combiner,
+            finisher
         );
     }
 
