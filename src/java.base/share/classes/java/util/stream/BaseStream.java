@@ -104,6 +104,15 @@ public interface BaseStream<T, S extends BaseStream<T, S>>
     boolean isParallel();
 
     /**
+     * Returns whether this stream, if a terminal operation were to be executed,
+     * would execute concurrently.  Calling this method after invoking an
+     * terminal stream operation method may yield unpredictable results.
+     *
+     * @return {@code true} if this stream would execute concurrently if executed
+     */
+    default boolean isConcurrent() { return false; }
+
+    /**
      * Returns an equivalent stream that is sequential.  May return
      * itself, either because the stream was already sequential, or because
      * the underlying stream state was modified to be sequential.
@@ -126,6 +135,18 @@ public interface BaseStream<T, S extends BaseStream<T, S>>
      * @return a parallel stream
      */
     S parallel();
+
+    /**
+     * Returns an equivalent stream that is concurrent.  May return
+     * itself, either because the stream was already concurrent, or because
+     * the underlying stream state was modified to be concurrent.
+     *
+     * <p>This is an <a href="package-summary.html#StreamOps">intermediate
+     * operation</a>.
+     *
+     * @return a concurrent stream
+     */
+    default S concurrent() { throw new UnsupportedOperationException("concurrent mode not supported"); }
 
     /**
      * Returns an equivalent stream that is

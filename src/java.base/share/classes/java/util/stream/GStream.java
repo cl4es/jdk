@@ -30,6 +30,8 @@ import jdk.internal.vm.annotation.ForceInline;
 
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
+import java.time.Instant;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Iterator;
@@ -41,7 +43,8 @@ import java.util.Set;
 import java.util.Spliterator;
 import java.util.Spliterators;
 import java.util.concurrent.CountedCompleter;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.StructuredTaskScope;
+import java.util.concurrent.TimeoutException;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.BinaryOperator;
@@ -163,9 +166,10 @@ final class GStream {
         private Runnable closeHandler;
         private int flags;
 
-        private static final int USED      = (1 << 0);
-        private static final int PARALLEL  = (1 << 1);
-        private static final int UNORDERED = (1 << 2);
+        private static final int USED       = (1 << 0);
+        private static final int PARALLEL   = (1 << 1);
+        private static final int UNORDERED  = (1 << 2);
+        private static final int CONCURRENT = (1 << 3);
 
         OfRef(Spliterator<? extends T> spliterator) {
             //assert spliterator != null;
@@ -211,15 +215,27 @@ final class GStream {
         public boolean isParallel() { return (flags & PARALLEL) == PARALLEL; }
 
         @Override
+        public boolean isConcurrent() { return (flags & CONCURRENT) == CONCURRENT; }
+
+        @Override
         public OfRef<T> sequential() {
             int f;
-            return (((f = flags) & PARALLEL) != PARALLEL) ? this : new OfRef<>(this, this.gatherer, f & ~PARALLEL);
+            return (((f = flags) & (PARALLEL | CONCURRENT)) == 0) ? this :
+                new OfRef<>(this, this.gatherer, f & ~(PARALLEL | CONCURRENT));
         }
 
         @Override
         public OfRef<T> parallel() {
             int f;
-            return (((f = flags) & PARALLEL) == PARALLEL) ? this : new OfRef<>(this, this.gatherer, f | PARALLEL);
+            return (((f = flags) & PARALLEL) == PARALLEL) ? this : new OfRef<>(this,
+                this.gatherer, (f & ~CONCURRENT) | PARALLEL);
+        }
+
+        @Override
+        public OfRef<T> concurrent() {
+            int f;
+            return (((f = flags) & CONCURRENT) == CONCURRENT) ? this : new OfRef<>(this,
+                this.gatherer, (f & ~PARALLEL) | CONCURRENT);
         }
 
         @Override
@@ -519,15 +535,15 @@ final class GStream {
 
         @SuppressWarnings("unchecked")
         private <R, AA, RR> RR gatherCollect(Gatherer<? super T, ?, R> gatherer, Collector<? super R, AA, RR> collector) {
-            final int flags = ensureUnusedThenUse();
+            final int f = ensureUnusedThenUse();
             Gatherer<?, ?, T> g;
             return evaluate(
                 (Spliterator<Object>)this.source,
-                flags,
+                f,
                 (Gatherer<Object, Object, R>)(((g = this.gatherer) != identity) ? g.andThen(gatherer) : gatherer),
                 collector.supplier(),
                 collector.accumulator(),
-                ((flags & PARALLEL) == PARALLEL) ? collector.combiner() : null,
+                (f & (PARALLEL | CONCURRENT)) == 0 ? null : collector.combiner(),
                 collector.characteristics().contains(Collector.Characteristics.IDENTITY_FINISH)
                     ? null
                     : collector.finisher()
@@ -537,14 +553,14 @@ final class GStream {
         @Override
         @SuppressWarnings("unchecked")
         public <RR, AA> RR collect(Collector<? super T, AA, RR> collector) {
-            final int flags = ensureUnusedThenUse();
+            final int f = ensureUnusedThenUse();
             return evaluate(
                 (Spliterator<Object>)this.source,
-                flags,
+                f,
                 (Gatherer<Object, Object, T>)this.gatherer, // TODO special-case the identity gathering case
                 collector.supplier(),
                 collector.accumulator(),
-                ((flags & PARALLEL) == PARALLEL) ? collector.combiner() : null,
+                (f & (PARALLEL | CONCURRENT)) == 0 ? null : collector.combiner(),
                 collector.characteristics().contains(Collector.Characteristics.IDENTITY_FINISH)
                     ? null
                     : collector.finisher()
@@ -671,12 +687,13 @@ final class GStream {
             // There are two main sections here: sequential and parallel
 
             final var initializer = gatherer.initializer();
-            final var integrator = gatherer.integrator();
+            final var integrator  = gatherer.integrator();
+            final var combiner    = gatherer.combiner();
 
             // Optimization
             final boolean greedy = integrator instanceof Gatherer.Integrator.Greedy<A, T, R>;
-
-            // Sequential evaluation section starts here.
+            // FIXME UNORDERED support
+            //final boolean unordered = (flags & UNORDERED) == UNORDERED;
 
             // Sequential is the fusion of a Gatherer and a Collector which can
             // be evaluated sequentially.
@@ -736,178 +753,6 @@ final class GStream {
                     return (collectorFinisher == null)
                         ? (CR) collectorState
                         : collectorFinisher.apply(collectorState);
-                }
-            }
-
-            /*
-             * It could be considered to also go to sequential mode if the
-             * operation is non-greedy AND the combiner is Gatherer.defaultCombiner()
-             * as those operations will not benefit from upstream parallel
-             * preprocessing which is the main advantage of the Hybrid evaluation
-             * strategy.
-             */
-            if ((flags & PARALLEL) != PARALLEL)
-                return new Sequential().evaluateUsing(spliterator).get();
-
-            // Parallel section starts here:
-
-            final var combiner = gatherer.combiner();
-
-            /*
-             * The following implementation of hybrid parallel-sequential
-             * Gatherer processing borrows heavily from ForeachOrderedTask,
-             * and adds handling of short-circuiting.
-             */
-            @SuppressWarnings("serial")
-            final class Hybrid extends CountedCompleter<Sequential> {
-                private final long targetSize;
-                private final Hybrid leftPredecessor;
-                private final AtomicBoolean cancelled;
-                private final Sequential localResult;
-
-                private Spliterator<T> spliterator;
-                private Hybrid next;
-
-                private static final VarHandle NEXT = MhUtil.findVarHandle(
-                    MethodHandles.lookup(), "next", Hybrid.class);
-
-                protected Hybrid(Spliterator<T> spliterator) {
-                    super(null);
-                    this.spliterator = spliterator;
-                    this.targetSize =
-                        AbstractTask.suggestTargetSize(spliterator.estimateSize());
-                    this.localResult = new Sequential();
-                    this.cancelled = greedy ? null : new AtomicBoolean(false);
-                    this.leftPredecessor = null;
-                }
-
-                Hybrid(Hybrid parent, Spliterator<T> spliterator, Hybrid leftPredecessor) {
-                    super(parent);
-                    this.spliterator = spliterator;
-                    this.targetSize = parent.targetSize;
-                    this.localResult = parent.localResult;
-                    this.cancelled = parent.cancelled;
-                    this.leftPredecessor = leftPredecessor;
-                }
-
-                @Override
-                public Sequential getRawResult() {
-                    return localResult;
-                }
-
-                @Override
-                public void setRawResult(Sequential result) {
-                    if (result != null) throw new IllegalStateException();
-                }
-
-                @Override
-                public void compute() {
-                    var task = this;
-                    Spliterator<T> rightSplit = task.spliterator, leftSplit;
-                    long sizeThreshold = task.targetSize;
-                    boolean forkRight = false;
-                    while ((greedy || !cancelled.get())
-                        && rightSplit.estimateSize() > sizeThreshold
-                        && (leftSplit = rightSplit.trySplit()) != null) {
-
-                        var leftChild = new Hybrid(task, leftSplit, task.leftPredecessor);
-                        var rightChild = new Hybrid(task, rightSplit, leftChild);
-
-                        /* leftChild and rightChild were just created and not
-                         * fork():ed yet so no need for a volatile write
-                         */
-                        leftChild.next = rightChild;
-
-                        // Fork the parent task
-                        // Completion of the left and right children "happens-before"
-                        // completion of the parent
-                        task.addToPendingCount(1);
-                        // Completion of the left child "happens-before" completion of
-                        // the right child
-                        rightChild.addToPendingCount(1);
-
-                        // If task is not on the left spine
-                        if (task.leftPredecessor != null) {
-                            /*
-                             * Completion of left-predecessor, or left subtree,
-                             * "happens-before" completion of left-most leaf node of
-                             * right subtree.
-                             * The left child's pending count needs to be updated before
-                             * it is associated in the completion map, otherwise the
-                             * left child can complete prematurely and violate the
-                             * "happens-before" constraint.
-                             */
-                            leftChild.addToPendingCount(1);
-                            // Update association of left-predecessor to left-most
-                            // leaf node of right subtree
-                            if (NEXT.compareAndSet(task.leftPredecessor, task, leftChild)) {
-                                // If replaced, adjust the pending count of the parent
-                                // to complete when its children complete
-                                task.addToPendingCount(-1);
-                            } else {
-                                // Left-predecessor has already completed, parent's
-                                // pending count is adjusted by left-predecessor;
-                                // left child is ready to complete
-                                leftChild.addToPendingCount(-1);
-                            }
-                        }
-
-                        if (forkRight) {
-                            rightSplit = leftSplit;
-                            task = leftChild;
-                            rightChild.fork();
-                        } else {
-                            task = rightChild;
-                            leftChild.fork();
-                        }
-                        forkRight = !forkRight;
-                    }
-
-                    /*
-                     * Task's pending count is either 0 or 1.  If 1 then the completion
-                     * map will contain a value that is task, and two calls to
-                     * tryComplete are required for completion, one below and one
-                     * triggered by the completion of task's left-predecessor in
-                     * onCompletion.  Therefore there is no data race within the if
-                     * block.
-                     *
-                     * IMPORTANT: Currently we only perform the processing of this
-                     * upstream data if we know the operation is greedy -- as we cannot
-                     * safely speculate on the cost/benefit ratio of parallelizing
-                     * the pre-processing of upstream data under short-circuiting.
-                     */
-                    if (greedy && task.getPendingCount() > 0) {
-                        // Upstream elements are buffered
-                        GathererOp.NodeBuilder<T> nb = new GathererOp.NodeBuilder<>();
-                        rightSplit.forEachRemaining(nb); // Run the upstream
-                        task.spliterator = nb.build().spliterator();
-                    }
-                    task.tryComplete();
-                }
-
-                @Override
-                public void onCompletion(CountedCompleter<?> caller) {
-                    var s = spliterator;
-                    spliterator = null; // GC assistance
-
-                    /* Performance sensitive since each leaf-task could have a
-                     * spliterator of size 1 which means that all else is overhead
-                     * which needs minimization.
-                     */
-                    if (s != null
-                        && (greedy || !cancelled.get())
-                        && !localResult.evaluateUsing(s).proceed
-                        && !greedy)
-                        cancelled.set(true);
-
-                    // The completion of this task *and* the dumping of elements
-                    // "happens-before" completion of the associated left-most leaf task
-                    // of right subtree (if any, which can be this task's right sibling)
-                    @SuppressWarnings("unchecked")
-                    var leftDescendant = (Hybrid) NEXT.getAndSet(this, null);
-                    if (leftDescendant != null) {
-                        leftDescendant.tryComplete();
-                    }
                 }
             }
 
@@ -999,7 +844,6 @@ final class GStream {
                         l.collectorState =
                             collectorCombiner.apply(l.collectorState, r.collectorState);
                         l.proceed = r.proceed;
-                        return l;
                     }
 
                     return (l != null) ? l : r;
@@ -1035,6 +879,7 @@ final class GStream {
                 }
 
                 private void cancelLaterTasks() {
+                    // FIXME In UNORDERED mode, cancellation should likely be done differently
                     // Go up the tree, cancel right siblings of this node and all parents
                     for (Parallel parent = getParent(), node = this;
                          parent != null;
@@ -1046,10 +891,98 @@ final class GStream {
                 }
             }
 
-            if (combiner != Gatherer.defaultCombiner())
-                return new Parallel(spliterator).invoke().get();
-            else
-                return new Hybrid(spliterator).invoke().get();
+            class Concurrent extends StructuredTaskScope<Sequential> {
+                private static final VarHandle FIRST_EXCEPTION =
+                    MhUtil.findVarHandle(MethodHandles.lookup(), "firstException", Throwable.class);
+                private volatile Throwable firstException;
+
+                @Override
+                protected void handleComplete(Subtask<? extends Sequential> subtask) {
+                    switch (subtask.state()) {
+                        case UNAVAILABLE:
+                            break;
+                        case SUCCESS:
+                            // FIXME the following solution to short-circuiting will not respect encounter-order
+//                            Sequential result;
+//                            if ((result = subtask.get()) != null && !result.proceed)
+//                                super.shutdown();
+                            break;
+                        case FAILED:
+                            if (firstException == null && FIRST_EXCEPTION.compareAndSet(this, null, subtask.exception()))
+                                super.shutdown();
+                            break;
+                    }
+                }
+
+                @Override
+                public Concurrent join() throws InterruptedException {
+                    super.join();
+                    return this;
+                }
+
+                @Override
+                public Concurrent joinUntil(Instant deadline)
+                    throws InterruptedException, TimeoutException {
+                    super.joinUntil(deadline);
+                    return this;
+                }
+
+                public void throwIfFailed() {
+                    ensureOwnerAndJoined();
+                    switch(firstException) {
+                        case null -> {}
+                        case RuntimeException re -> throw re;
+                        case Error e -> throw e;
+                        case Throwable t -> throw new IllegalStateException(t);
+                    }
+                }
+
+                Sequential evaluateUsing(Spliterator<T> spliterator) {
+                    try (var scope = this) {
+                        final var tasks = new ArrayDeque<Subtask<? extends Sequential>>();
+                        scope.fork(() -> {
+                            spliterator.forEachRemaining(e -> {
+                                tasks.add(
+                                    scope.fork(() -> {
+                                        var s = new Sequential();
+                                        s.accept(e);
+                                        return s;
+                                    })
+                                );
+                            });
+                            return null;
+                        });
+                        scope.join().throwIfFailed();
+
+                        Sequential result = new Sequential();
+                        for(Subtask<? extends Sequential> task = tasks.pollFirst(); task != null; task = tasks.pollFirst()) {
+                            Sequential next;
+                            if (task.state() == Subtask.State.SUCCESS && (next = task.get()) != null) {
+                                result.state = combiner.apply(result.state, next.state);
+                                result.collectorState = collectorCombiner.apply(result.collectorState, next.collectorState);
+                                result.proceed = next.proceed;
+                            }
+                        }
+                        return result;
+                    } catch (InterruptedException ie) {
+                        Thread.interrupted();
+                        throw new IllegalStateException("interrupted");
+                    }
+                }
+            }
+
+            /*
+             * It could be considered to also go to sequential mode if the
+             * operation is non-greedy AND the combiner is Gatherer.defaultCombiner()
+             * as those operations will not benefit from upstream parallel
+             * preprocessing which is the main advantage of the Hybrid evaluation
+             * strategy.
+             */
+            return ((flags & (PARALLEL | CONCURRENT)) == 0 || combiner == Gatherer.defaultCombiner())
+                ? new Sequential().evaluateUsing(spliterator).get()
+                : ((flags & PARALLEL) == PARALLEL)
+                    ? new Parallel(spliterator).invoke().get()
+                    : new Concurrent().evaluateUsing(spliterator).get();
         }
     }
 }
