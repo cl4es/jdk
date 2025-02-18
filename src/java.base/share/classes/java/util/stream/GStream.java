@@ -70,11 +70,6 @@ final class GStream {
 
         Box() {}
 
-        Box(T value) {
-            this.value = value;
-            this.hasValue = true;
-        }
-
         void setIfUnset(T value) {
             if (!this.hasValue) {
                 this.value = value;
@@ -102,7 +97,12 @@ final class GStream {
         }
 
         Optional<T> optionalValue() {
-            return this.hasValue ? Optional.of(this.value) : Optional.empty();
+            return this.hasValue ? Optional.ofNullable(this.value) : Optional.empty();
+        }
+
+        @Override
+        public String toString() {
+            return "Box[value=" + value + ", hasValue=" + hasValue + "]";
         }
     }
 
@@ -140,24 +140,22 @@ final class GStream {
         @Override public Void get() { return null; }
     }
 
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({"unchecked", "rawtypes"})
     @ForceInline
-    public static <T> Collector<T,?,Optional<T>> findFirst() {
-        return (Collector<T,?,Optional<T>>)FIND_FIRST;
+    public static <T> Collector<T, ?, Optional<T>> findFirst() {
+        return (Collector<T, ?, Optional<T>>)(Collector)FIND_FIRST;
     }
 
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({"unchecked", "rawtypes"})
     @ForceInline
-    public static <T> Collector<T,?,Optional<T>> findLast() {
-        return (Collector<T,?,Optional<T>>)FIND_LAST;
+    public static <T> Collector<T, ?, Optional<T>> findLast() {
+        return (Collector<T, ?, Optional<T>>)(Collector)FIND_LAST;
     }
 
-    @SuppressWarnings("rawtypes")
-    private final static Collector FIND_FIRST =
+    private final static Collector<? super Object, Box<Object>, Optional<Object>> FIND_FIRST =
         Collector.of(Box::new, Box::setIfUnset, Box::preferLeft, Box::optionalValue);
 
-    @SuppressWarnings("rawtypes")
-    private final static Collector FIND_LAST =
+    private final static Collector<? super Object, Box<Object>, Optional<Object>> FIND_LAST =
         Collector.of(Box::new, Box::set, Box::preferRight, Box::optionalValue);
 
     final static class OfRef<T> implements Stream<T> {
@@ -169,7 +167,6 @@ final class GStream {
         private static final int USED       = (1 << 0);
         private static final int PARALLEL   = (1 << 1);
         private static final int UNORDERED  = (1 << 2);
-        private static final int CONCURRENT = (1 << 3);
 
         OfRef(Spliterator<? extends T> spliterator) {
             //assert spliterator != null;
@@ -201,47 +198,39 @@ final class GStream {
         @Override
         @SuppressWarnings("unchecked")
         public Spliterator<T> spliterator() {
-            final Spliterator<T> result;
             if (gatherer == identity) {
                 ensureUnusedThenUse(); // TODO do we try to propagate flags to the spliterator?
-                result = (Spliterator<T>) source;
+                return (Spliterator<T>) source;
             } else {
-                result = collect(Collectors.toList()).spliterator();
+                return collect(Collectors.toList()).spliterator(); // FIXME better impl
             }
-            return result;
         }
 
         @Override
         public boolean isParallel() { return (flags & PARALLEL) == PARALLEL; }
 
         @Override
-        public boolean isConcurrent() { return (flags & CONCURRENT) == CONCURRENT; }
-
-        @Override
         public OfRef<T> sequential() {
             int f;
-            return (((f = flags) & (PARALLEL | CONCURRENT)) == 0) ? this :
-                new OfRef<>(this, this.gatherer, f & ~(PARALLEL | CONCURRENT));
+            return (((f = flags) & PARALLEL) == 0)
+                ? this
+                : new OfRef<>(this, this.gatherer, f & ~PARALLEL);
         }
 
         @Override
         public OfRef<T> parallel() {
             int f;
-            return (((f = flags) & PARALLEL) == PARALLEL) ? this : new OfRef<>(this,
-                this.gatherer, (f & ~CONCURRENT) | PARALLEL);
-        }
-
-        @Override
-        public OfRef<T> concurrent() {
-            int f;
-            return (((f = flags) & CONCURRENT) == CONCURRENT) ? this : new OfRef<>(this,
-                this.gatherer, (f & ~PARALLEL) | CONCURRENT);
+            return (((f = flags) & PARALLEL) == PARALLEL)
+                ? this
+                : new OfRef<>(this, this.gatherer, f | PARALLEL);
         }
 
         @Override
         public OfRef<T> unordered() {
             int f;
-            return (((f = flags) & UNORDERED) == UNORDERED) ? this : new OfRef<>(this, this.gatherer, f | UNORDERED);
+            return (((f = flags) & UNORDERED) == UNORDERED)
+                ? this
+                : new OfRef<>(this, this.gatherer, f | UNORDERED);
         }
 
         @Override
@@ -533,37 +522,14 @@ final class GStream {
             );
         }
 
-        @SuppressWarnings("unchecked")
-        private <R, AA, RR> RR gatherCollect(Gatherer<? super T, ?, R> gatherer, Collector<? super R, AA, RR> collector) {
-            final int f = ensureUnusedThenUse();
-            Gatherer<?, ?, T> g;
-            return evaluate(
-                (Spliterator<Object>)this.source,
-                f,
-                (Gatherer<Object, Object, R>)(((g = this.gatherer) != identity) ? g.andThen(gatherer) : gatherer),
-                collector.supplier(),
-                collector.accumulator(),
-                (f & (PARALLEL | CONCURRENT)) == 0 ? null : collector.combiner(),
-                collector.characteristics().contains(Collector.Characteristics.IDENTITY_FINISH)
-                    ? null
-                    : collector.finisher()
-            );
-        }
-
         @Override
         @SuppressWarnings("unchecked")
         public <RR, AA> RR collect(Collector<? super T, AA, RR> collector) {
             final int f = ensureUnusedThenUse();
             return evaluate(
                 (Spliterator<Object>)this.source,
-                f,
-                (Gatherer<Object, Object, T>)this.gatherer, // TODO special-case the identity gathering case
-                collector.supplier(),
-                collector.accumulator(),
-                (f & (PARALLEL | CONCURRENT)) == 0 ? null : collector.combiner(),
-                collector.characteristics().contains(Collector.Characteristics.IDENTITY_FINISH)
-                    ? null
-                    : collector.finisher()
+                (Gatherer<Object, Object, T>)this.gatherer,
+                collector, f
             );
         }
 
@@ -609,12 +575,14 @@ final class GStream {
                     AnyMatch::combine,
                     AnyMatch::finish
                 ),
-                GStream.<Boolean>findFirst()
+                GStream.findFirst(),
+                0
             ).get();
         }
 
         @Override
         public boolean allMatch(Predicate<? super T> predicate) {
+            final int f = ensureUnusedThenUse();
             // TODO if known size is 0, return true immediately
             class AllMatch {
                 boolean match = true;
@@ -631,7 +599,8 @@ final class GStream {
                     AllMatch::combine,
                     AllMatch::finish
                 ),
-                GStream.findFirst()
+                GStream.findFirst(),
+                f
             ).get();
         }
 
@@ -644,30 +613,54 @@ final class GStream {
         @Override
         public Optional<T> findFirst() {
             // TODO if known size is 0, return Optional.empty() immediately
-            class FindOne {
-                boolean hasValue;
-                T value;
-                boolean integrate(T e, Gatherer.Downstream<? super T> d) {
-                    return !hasValue && (hasValue = true) && d.push(e);
-                }
-                FindOne combine(FindOne r) { return hasValue ? this : r; }
-                void finish(Gatherer.Downstream<? super T> d) { if (hasValue) d.push(value); }
-            }
+            final int f = ensureUnusedThenUse();
             return gatherCollect(
-                Gatherer.<T, FindOne, T>of(
-                    FindOne::new,
-                    FindOne::integrate,
-                    FindOne::combine,
-                    FindOne::finish
-                ),
-                GStream.findFirst()
+                Gatherer.of((v, e, d) -> d.push(e) & false),
+                GStream.findFirst(),
+                f
             );
         }
 
         @Override
         public Optional<T> findAny() {
+            final int f = ensureUnusedThenUse();
             // TODO if known size is 0, return Optional.empty() immediately
-            return findFirst(); // TODO optimize for unordered streams?
+            return gatherCollect(
+                Gatherer.of((v, e, d) -> d.push(e) & false),
+                GStream.findLast(),
+                f | UNORDERED // Add the unordered flag
+            );
+        }
+
+        @SuppressWarnings("unchecked")
+        private <R, RR> RR gatherCollect(Gatherer<? super T, ?, R> gatherer,
+                                         Collector<? super R, ?, RR> collector,
+                                         int flags) {
+            Gatherer<?, ?, T> g;
+            return evaluate(
+                (Spliterator<Object>) this.source,
+                (Gatherer<Object, ?, R>)(((g = this.gatherer) != identity) ? g.andThen(gatherer) : gatherer),
+                collector,
+                flags
+            );
+        }
+
+        public static <T, A, R, AA, RR> RR evaluate(
+            Spliterator<T> spliterator,
+            Gatherer<T, A, R> gatherer,
+            Collector<? super R, AA, RR> collector,
+            int flags) {
+            return evaluate(
+                spliterator,
+                flags,
+                gatherer, // TODO special-case identity Gathering case?
+                collector.supplier(),
+                collector.accumulator(),
+                (flags & PARALLEL) == PARALLEL ? collector.combiner() : null,
+                collector.characteristics().contains(Collector.Characteristics.IDENTITY_FINISH)
+                    ? null
+                    : collector.finisher()
+            );
         }
 
         /*
@@ -693,7 +686,7 @@ final class GStream {
             // Optimization
             final boolean greedy = integrator instanceof Gatherer.Integrator.Greedy<A, T, R>;
             // FIXME UNORDERED support
-            //final boolean unordered = (flags & UNORDERED) == UNORDERED;
+            final boolean unordered = (flags & UNORDERED) == UNORDERED;
 
             // Sequential is the fusion of a Gatherer and a Collector which can
             // be evaluated sequentially.
@@ -754,6 +747,11 @@ final class GStream {
                         ? (CR) collectorState
                         : collectorFinisher.apply(collectorState);
                 }
+
+                @Override
+                public String toString() {
+                    return "Sequential[collectorState=" + collectorState + ", proceed=" + proceed + "]";
+                }
             }
 
             /*
@@ -801,7 +799,7 @@ final class GStream {
                 private void doProcess() {
                     if (!(localResult = new Sequential()).evaluateUsing(spliterator).proceed
                         && !greedy)
-                        cancelLaterTasks();
+                        cancelTasks();
                 }
 
                 @Override
@@ -839,11 +837,10 @@ final class GStream {
                      * Only join the right if the left side didn't short-circuit,
                      * or when greedy
                      */
-                    if (greedy || (l != null && r != null && l.proceed)) {
-                        l.state = combiner.apply(l.state, r.state);
-                        l.collectorState =
-                            collectorCombiner.apply(l.collectorState, r.collectorState);
-                        l.proceed = r.proceed;
+                    if (greedy || (l != null && r != null && (unordered != l.proceed))) {
+                        l.state = combiner.apply(l.state, r.state); // FIXME conditional call?
+                        l.collectorState = collectorCombiner.apply(l.collectorState, r.collectorState);
+                        l.proceed &= r.proceed;
                     }
 
                     return (l != null) ? l : r;
@@ -857,6 +854,7 @@ final class GStream {
                          * short-circuiting or when Gatherers are stateful but
                          * uses `null` as their state value.
                          */
+                        //assert localResult == null;
                         localResult = merge(leftChild.localResult, rightChild.localResult);
                         leftChild = rightChild = null; // GC assistance
                     }
@@ -867,106 +865,38 @@ final class GStream {
                     return (Parallel) getCompleter();
                 }
 
+                @SuppressWarnings("unchecked")
+                public Parallel getParallelRoot() {
+                    return (Parallel) getRoot();
+                }
+
                 private boolean isRequestedToCancel() {
-                    boolean cancel = canceled;
-                    if (!cancel) {
+                    boolean cancel;
+                    if (!(cancel = canceled)) {
                         for (Parallel parent = getParent();
-                             !cancel && parent != null;
-                             parent = parent.getParent())
-                            cancel = parent.canceled;
+                             parent != null && !(cancel = parent.canceled);
+                             parent = parent.getParent()) {}
                     }
                     return cancel;
                 }
 
-                private void cancelLaterTasks() {
-                    // FIXME In UNORDERED mode, cancellation should likely be done differently
-                    // Go up the tree, cancel right siblings of this node and all parents
-                    for (Parallel parent = getParent(), node = this;
-                         parent != null;
-                         node = parent, parent = parent.getParent()) {
-                        // If node is a left child of parent, then has a right sibling
-                        if (parent.leftChild == node)
-                            parent.rightChild.canceled = true;
-                    }
-                }
-            }
-
-            class Concurrent extends StructuredTaskScope<Sequential> {
-                private static final VarHandle FIRST_EXCEPTION =
-                    MhUtil.findVarHandle(MethodHandles.lookup(), "firstException", Throwable.class);
-                private volatile Throwable firstException;
-
-                @Override
-                protected void handleComplete(Subtask<? extends Sequential> subtask) {
-                    switch (subtask.state()) {
-                        case UNAVAILABLE:
-                            break;
-                        case SUCCESS:
-                            // FIXME the following solution to short-circuiting will not respect encounter-order
-//                            Sequential result;
-//                            if ((result = subtask.get()) != null && !result.proceed)
-//                                super.shutdown();
-                            break;
-                        case FAILED:
-                            if (firstException == null && FIRST_EXCEPTION.compareAndSet(this, null, subtask.exception()))
-                                super.shutdown();
-                            break;
-                    }
-                }
-
-                @Override
-                public Concurrent join() throws InterruptedException {
-                    super.join();
-                    return this;
-                }
-
-                @Override
-                public Concurrent joinUntil(Instant deadline)
-                    throws InterruptedException, TimeoutException {
-                    super.joinUntil(deadline);
-                    return this;
-                }
-
-                public void throwIfFailed() {
-                    ensureOwnerAndJoined();
-                    switch(firstException) {
-                        case null -> {}
-                        case RuntimeException re -> throw re;
-                        case Error e -> throw e;
-                        case Throwable t -> throw new IllegalStateException(t);
-                    }
-                }
-
-                Sequential evaluateUsing(Spliterator<T> spliterator) {
-                    try (var scope = this) {
-                        final var tasks = new ArrayDeque<Subtask<? extends Sequential>>();
-                        scope.fork(() -> {
-                            spliterator.forEachRemaining(e -> {
-                                tasks.add(
-                                    scope.fork(() -> {
-                                        var s = new Sequential();
-                                        s.accept(e);
-                                        return s;
-                                    })
-                                );
-                            });
-                            return null;
-                        });
-                        scope.join().throwIfFailed();
-
-                        Sequential result = new Sequential();
-                        for(Subtask<? extends Sequential> task = tasks.pollFirst(); task != null; task = tasks.pollFirst()) {
-                            Sequential next;
-                            if (task.state() == Subtask.State.SUCCESS && (next = task.get()) != null) {
-                                result.state = combiner.apply(result.state, next.state);
-                                result.collectorState = collectorCombiner.apply(result.collectorState, next.collectorState);
-                                result.proceed = next.proceed;
-                            }
+                @SuppressWarnings("unchecked")
+                private void cancelTasks() {
+                    if (unordered) {
+                        // If we are unordered we just cancel left and right
+                        // as we do not need to respect encounter order
+                        getParallelRoot().canceled = true;
+                        // TODO is it worth traversing the graph and cancelling each node?
+                    } else {
+                        for (Parallel p = getParent(), node = this;
+                             p != null;
+                             node = p, p = p.getParent()) {
+                            // If node is a left child of parent, then has a right sibling
+                            // which means that if we cancel that, we cancel tasks
+                            // processing elements *later* in the stream order
+                            if (p.leftChild == node)
+                                p.rightChild.canceled = true;
                         }
-                        return result;
-                    } catch (InterruptedException ie) {
-                        Thread.interrupted();
-                        throw new IllegalStateException("interrupted");
                     }
                 }
             }
@@ -978,11 +908,9 @@ final class GStream {
              * preprocessing which is the main advantage of the Hybrid evaluation
              * strategy.
              */
-            return ((flags & (PARALLEL | CONCURRENT)) == 0 || combiner == Gatherer.defaultCombiner())
-                ? new Sequential().evaluateUsing(spliterator).get()
-                : ((flags & PARALLEL) == PARALLEL)
-                    ? new Parallel(spliterator).invoke().get()
-                    : new Concurrent().evaluateUsing(spliterator).get();
+            return ((flags & PARALLEL) == 0 || combiner == Gatherer.defaultCombiner())
+                ? new Sequential().evaluateUsing(spliterator).get() // TODO validate EA
+                : new Parallel(spliterator).invoke().get();
         }
     }
 }

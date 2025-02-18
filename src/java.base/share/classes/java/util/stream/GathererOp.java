@@ -735,12 +735,11 @@ final class GathererOp<T, A, R> extends ReferencePipeline<T, R> {
             }
 
             private boolean isRequestedToCancel() {
-                boolean cancel = canceled;
-                if (!cancel) {
+                boolean cancel;
+                if (!(cancel = canceled)) {
                     for (Parallel parent = getParent();
-                         !cancel && parent != null;
-                         parent = parent.getParent())
-                        cancel = parent.canceled;
+                         parent != null && !(cancel = parent.canceled);
+                         parent = parent.getParent()) {}
                 }
                 return cancel;
             }
