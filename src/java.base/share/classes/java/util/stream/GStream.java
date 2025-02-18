@@ -25,14 +25,12 @@
 
 package java.util.stream;
 
-import jdk.internal.invoke.MhUtil;
+import jdk.internal.access.SharedSecrets;
 import jdk.internal.vm.annotation.ForceInline;
+import jdk.internal.vm.annotation.Stable;
 
-import java.lang.invoke.MethodHandles;
-import java.lang.invoke.VarHandle;
-import java.time.Instant;
-import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
@@ -43,8 +41,6 @@ import java.util.Set;
 import java.util.Spliterator;
 import java.util.Spliterators;
 import java.util.concurrent.CountedCompleter;
-import java.util.concurrent.StructuredTaskScope;
-import java.util.concurrent.TimeoutException;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.BinaryOperator;
@@ -106,13 +102,14 @@ final class GStream {
         }
     }
 
+    @Stable
     private static final Gatherer<Object, Void, Object> identity =
         Gatherer.of(Gatherer.Integrator.ofGreedy((v, e, d) -> d.push(e)));
 
     @SuppressWarnings("unchecked")
     @ForceInline
-    private static <T> Gatherer<?, ?, T> identity() {
-        return (Gatherer<?, ?, T>) identity;
+    private static <T> Gatherer<T, ?, T> identity() {
+        return (Gatherer<T, ?, T>) identity;
     }
 
     private enum IntoTheVoid
@@ -152,11 +149,33 @@ final class GStream {
         return (Collector<T, ?, Optional<T>>)(Collector)FIND_LAST;
     }
 
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    @ForceInline
+    public static <T> Collector<? super T, ?, SpinedBuffer<T>> buffer() {
+        return (Collector<? super T, ?, SpinedBuffer<T>>)(Collector)BUFFER;
+    }
+
+    @Stable
     private final static Collector<? super Object, Box<Object>, Optional<Object>> FIND_FIRST =
         Collector.of(Box::new, Box::setIfUnset, Box::preferLeft, Box::optionalValue);
 
+    @Stable
     private final static Collector<? super Object, Box<Object>, Optional<Object>> FIND_LAST =
         Collector.of(Box::new, Box::set, Box::preferRight, Box::optionalValue);
+
+    // TODO consider different buffering technique
+    @Stable
+    private static final Collector<? super Object, SpinedBuffer<Object>, SpinedBuffer<Object>> BUFFER =
+        Collector.of(
+            SpinedBuffer::new,
+            SpinedBuffer::accept,
+            (SpinedBuffer<Object> l, SpinedBuffer<Object> r) -> {
+                r.forEach(l);
+                return l;
+            },
+            Collector.Characteristics.IDENTITY_FINISH
+        );
+
 
     final static class OfRef<T> implements Stream<T> {
         private final Spliterator<?> source;
@@ -199,10 +218,10 @@ final class GStream {
         @SuppressWarnings("unchecked")
         public Spliterator<T> spliterator() {
             if (gatherer == identity) {
-                ensureUnusedThenUse(); // TODO do we try to propagate flags to the spliterator?
+                ensureUnusedThenUse();
                 return (Spliterator<T>) source;
             } else {
-                return collect(Collectors.toList()).spliterator(); // FIXME better impl
+                return (Spliterator<T>) Arrays.spliterator(toArray()); // FIXME better impl
             }
         }
 
@@ -451,16 +470,46 @@ final class GStream {
         }
 
         @Override public void forEach(Consumer<? super T> action) {
-            peek(action).collect(IntoTheVoid.instance()); // TODO optimize
+            collect(
+                Collector.of(
+                    Gatherers.Value.DEFAULT.initializer(),
+                    (v, e) -> action.accept(e),
+                    Gatherers.Value.DEFAULT.statelessCombiner
+                )
+            );
         }
 
+        @SuppressWarnings("unchecked")
         @Override public void forEachOrdered(Consumer<? super T> action) {
-            peekOrdered(action).collect(IntoTheVoid.instance()); // TODO optimize
+            final int f = ensureUnusedThenUse();
+            Void ignore = gatherCollect(
+                GStream.identity(), // Should be elided
+                Collector.of(
+                    Gatherer.defaultInitializer(),
+                    (v, e) -> action.accept(e),
+                    Gatherer.defaultCombiner() // Shouldn't be used since we drop Parallel
+                ),
+                f & ~PARALLEL // Drop parallel mode so we ensure sequential eval
+            );
         }
 
-        @Override public Object[] toArray() { return toList().toArray(); } // FIXME implement
+        @Override public Object[] toArray() {
+            return toArray(Object[]::new);
+        }
 
-        @Override public <A> A[] toArray(IntFunction<A[]> generator) { return toList().toArray(generator); } // FIXME implement
+        @SuppressWarnings("unchecked")
+        @Override public <A> A[] toArray(IntFunction<A[]> generator) {
+            // Since A has no relation to U (not possible to declare that A is an upper bound of U)
+            // there will be no static type checking.
+            // Therefore use a raw type and assume A == U rather than propagating the separation of A and U
+            // throughout the code-base.
+            // The runtime type of U is never checked for equality with the component type of the runtime type of A[].
+            // Runtime checking will be performed when an element is stored in A[], thus if A is not a
+            // super type of U an ArrayStoreException will be thrown.
+            @SuppressWarnings("rawtypes")
+            IntFunction rawGenerator = generator;
+            return (A[])collect(GStream.buffer()).asArray(rawGenerator);
+        }
 
         @Override
         public T reduce(T identity, BinaryOperator<T> accumulator) { return reduce(identity, accumulator, accumulator); }
@@ -537,7 +586,7 @@ final class GStream {
         @Override
         public List<T> toList() {
             // TODO if known size is 0, return List.empty() immediately
-            return collect(Collectors.toUnmodifiableList());
+            return SharedSecrets.getJavaUtilCollectionAccess().listFromTrustedArrayNullsAllowed(this.toArray());
         }
 
         @Override
@@ -654,7 +703,7 @@ final class GStream {
             return evaluate(
                 spliterator,
                 flags,
-                gatherer,
+                Gatherers.GathererImpl.<T,A,R>of(gatherer), // hoist values
                 collector.supplier(),
                 collector.accumulator(),
                 (flags & PARALLEL) == PARALLEL ? collector.combiner() : null,
@@ -662,114 +711,6 @@ final class GStream {
                     ? null
                     : collector.finisher()
             );
-        }
-
-        @SuppressWarnings("unchecked")
-        private static <R, CA, CR> CR evaluate(
-            final Spliterator<R> spliterator,
-            final int flags,
-            final Supplier<CA> collectorSupplier,
-            final BiConsumer<CA, ? super R> collectorAccumulator,
-            final BinaryOperator<CA> collectorCombiner,
-            final Function<CA, CR> collectorFinisher) {
-            if ((flags & PARALLEL) != PARALLEL) {
-                var state = collectorSupplier.get();
-                spliterator.forEachRemaining(r -> collectorAccumulator.accept(state, r));
-                return collectorFinisher != null ? collectorFinisher.apply(state) : (CR)state;
-            } else {
-                @SuppressWarnings("serial")
-                final class Parallel extends CountedCompleter<CR> implements Consumer<R> {
-                    private Spliterator<R> spliterator;
-                    private Parallel leftChild; // Only non-null if rightChild is
-                    private Parallel rightChild; // Only non-null if leftChild is
-                    private CA localResult;
-                    private volatile boolean canceled;
-                    private long targetSize; // lazily initialized
-
-                    private Parallel(Parallel parent, Spliterator<R> spliterator) {
-                        super(parent);
-                        this.targetSize = parent.targetSize;
-                        this.spliterator = spliterator;
-                    }
-
-                    Parallel(Spliterator<R> spliterator) {
-                        super(null);
-                        this.targetSize = 0L;
-                        this.spliterator = spliterator;
-                    }
-
-                    private long getTargetSize(long sizeEstimate) {
-                        long s;
-                        return ((s = targetSize) != 0
-                            ? s
-                            : (targetSize = AbstractTask.suggestTargetSize(sizeEstimate)));
-                    }
-
-                    @Override
-                    public CR getRawResult() {
-                        return collectorFinisher != null
-                            ? collectorFinisher.apply(localResult)
-                            : (CR)localResult;
-                    }
-
-                    @Override
-                    public void setRawResult(CR result) {
-                        if (result != null) throw new IllegalStateException();
-                    }
-
-                    @Override
-                    public void accept(R r) {
-                        collectorAccumulator.accept(localResult, r);
-                    }
-
-                    private void doProcess() {
-                        localResult = collectorSupplier.get();
-                        spliterator.forEachRemaining(this);
-                    }
-
-                    @Override
-                    public void compute() {
-                        Spliterator<R> rs = spliterator, ls;
-                        long sizeEstimate = rs.estimateSize();
-                        final long sizeThreshold = getTargetSize(sizeEstimate);
-                        Parallel task = this;
-                        boolean forkRight = false;
-                        while (sizeEstimate > sizeThreshold
-                            && (ls = rs.trySplit()) != null) {
-                            final var leftChild = task.leftChild = new Parallel(task, ls);
-                            final var rightChild = task.rightChild = new Parallel(task, rs);
-                            task.setPendingCount(1);
-                            if (forkRight) {
-                                rs = ls;
-                                task = leftChild;
-                                rightChild.fork();
-                            } else {
-                                task = rightChild;
-                                leftChild.fork();
-                            }
-                            forkRight = !forkRight;
-                            sizeEstimate = rs.estimateSize();
-                        }
-                        task.doProcess();
-                        task.tryComplete();
-                    }
-
-                    @Override
-                    public void onCompletion(CountedCompleter<?> caller) {
-                        spliterator = null; // GC assistance
-                        if (leftChild != null) {
-                            /* Results can only be null in the case where there's
-                             * short-circuiting or when Gatherers are stateful but
-                             * uses `null` as their state value.
-                             */
-                            //assert localResult == null;
-                            localResult = collectorCombiner.apply(leftChild.localResult, rightChild.localResult);
-                            leftChild = rightChild = null; // GC assistance
-                        }
-                    }
-                }
-                return new Parallel(spliterator).invoke();
-            }
         }
 
         /*
@@ -781,30 +722,16 @@ final class GStream {
         private static <T, A, R, CA, CR> CR evaluate(
             final Spliterator<T> spliterator,
             final int flags,
-            final Gatherer<T, A, R> gatherer,
+            final Gatherers.GathererImpl<T, A, R> gatherer,
             final Supplier<CA> collectorSupplier,
             final BiConsumer<CA, ? super R> collectorAccumulator,
             final BinaryOperator<CA> collectorCombiner,
             final Function<CA, CR> collectorFinisher) {
 
-            // Disregard the Gatherer if it is identity
-            if (gatherer == identity)
-                return evaluate(
-                    (Spliterator<R>)spliterator,
-                    flags,
-                    collectorSupplier,
-                    collectorAccumulator,
-                    collectorCombiner, collectorFinisher
-                );
-
             // There are two main sections here: sequential and parallel
 
-            final var initializer = gatherer.initializer();
-            final var integrator  = gatherer.integrator();
-            final var combiner    = gatherer.combiner();
-
             // Optimization
-            final boolean greedy = integrator instanceof Gatherer.Integrator.Greedy<A, T, R>;
+            final boolean greedy = gatherer.integrator() instanceof Gatherer.Integrator.Greedy<A, T, R>;
             // FIXME UNORDERED support
             final boolean unordered = (flags & UNORDERED) == UNORDERED;
 
@@ -816,6 +743,7 @@ final class GStream {
                 boolean proceed;
 
                 Sequential() {
+                    var initializer = gatherer.initializer();
                     if (initializer != Gatherer.defaultInitializer())
                         state = initializer.get();
                     collectorState = collectorSupplier.get();
@@ -853,7 +781,7 @@ final class GStream {
                      * proceed &= integrator.integrate(state, t, this);
                      */
 
-                    var ignore = integrator.integrate(state, t, this)
+                    var ignore = gatherer.integrator().integrate(state, t, this)
                         || (!greedy && (proceed = false));
                 }
 
@@ -958,7 +886,7 @@ final class GStream {
                      * or when greedy
                      */
                     if (greedy || (l != null && r != null && (unordered != l.proceed))) {
-                        l.state = combiner.apply(l.state, r.state); // FIXME conditional call?
+                        l.state = gatherer.combiner().apply(l.state, r.state); // FIXME conditional?
                         l.collectorState = collectorCombiner.apply(l.collectorState, r.collectorState);
                         l.proceed &= r.proceed;
                     }
@@ -1028,7 +956,7 @@ final class GStream {
              * preprocessing which is the main advantage of the Hybrid evaluation
              * strategy.
              */
-            return ((flags & PARALLEL) == 0 || combiner == Gatherer.defaultCombiner())
+            return ((flags & PARALLEL) == 0 || gatherer.combiner() == Gatherer.defaultCombiner())
                 ? new Sequential().evaluateUsing(spliterator).get() // TODO validate EA
                 : new Parallel(spliterator).invoke().get();
         }

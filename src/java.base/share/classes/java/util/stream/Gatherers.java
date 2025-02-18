@@ -511,6 +511,18 @@ public final class Gatherers {
             Objects.requireNonNull(combiner, "combiner");
             Objects.requireNonNull(finisher, "finisher");
         }
+
+        // Internal usage only
+        static <T, A, R> GathererImpl<T, A, R> of(Gatherer<T, A, R> gatherer) {
+            return (gatherer instanceof GathererImpl<T,A,R> g)
+                ? g
+                : new Gatherers.GathererImpl<>(
+                    gatherer.initializer(),
+                    gatherer.integrator(),
+                    gatherer.combiner(),
+                    gatherer.finisher()
+                );
+        }
     }
 
     static final class Composite<T, A, R, AA, RR> implements Gatherer<T, Object, RR> {
