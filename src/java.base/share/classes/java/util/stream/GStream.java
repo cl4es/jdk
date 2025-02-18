@@ -529,7 +529,8 @@ final class GStream {
             return evaluate(
                 (Spliterator<Object>)this.source,
                 (Gatherer<Object, Object, T>)this.gatherer,
-                collector, f
+                collector,
+                f
             );
         }
 
@@ -653,7 +654,7 @@ final class GStream {
             return evaluate(
                 spliterator,
                 flags,
-                gatherer, // TODO special-case identity Gathering case?
+                gatherer,
                 collector.supplier(),
                 collector.accumulator(),
                 (flags & PARALLEL) == PARALLEL ? collector.combiner() : null,
@@ -663,11 +664,120 @@ final class GStream {
             );
         }
 
+        @SuppressWarnings("unchecked")
+        private static <R, CA, CR> CR evaluate(
+            final Spliterator<R> spliterator,
+            final int flags,
+            final Supplier<CA> collectorSupplier,
+            final BiConsumer<CA, ? super R> collectorAccumulator,
+            final BinaryOperator<CA> collectorCombiner,
+            final Function<CA, CR> collectorFinisher) {
+            if ((flags & PARALLEL) != PARALLEL) {
+                var state = collectorSupplier.get();
+                spliterator.forEachRemaining(r -> collectorAccumulator.accept(state, r));
+                return collectorFinisher != null ? collectorFinisher.apply(state) : (CR)state;
+            } else {
+                @SuppressWarnings("serial")
+                final class Parallel extends CountedCompleter<CR> implements Consumer<R> {
+                    private Spliterator<R> spliterator;
+                    private Parallel leftChild; // Only non-null if rightChild is
+                    private Parallel rightChild; // Only non-null if leftChild is
+                    private CA localResult;
+                    private volatile boolean canceled;
+                    private long targetSize; // lazily initialized
+
+                    private Parallel(Parallel parent, Spliterator<R> spliterator) {
+                        super(parent);
+                        this.targetSize = parent.targetSize;
+                        this.spliterator = spliterator;
+                    }
+
+                    Parallel(Spliterator<R> spliterator) {
+                        super(null);
+                        this.targetSize = 0L;
+                        this.spliterator = spliterator;
+                    }
+
+                    private long getTargetSize(long sizeEstimate) {
+                        long s;
+                        return ((s = targetSize) != 0
+                            ? s
+                            : (targetSize = AbstractTask.suggestTargetSize(sizeEstimate)));
+                    }
+
+                    @Override
+                    public CR getRawResult() {
+                        return collectorFinisher != null
+                            ? collectorFinisher.apply(localResult)
+                            : (CR)localResult;
+                    }
+
+                    @Override
+                    public void setRawResult(CR result) {
+                        if (result != null) throw new IllegalStateException();
+                    }
+
+                    @Override
+                    public void accept(R r) {
+                        collectorAccumulator.accept(localResult, r);
+                    }
+
+                    private void doProcess() {
+                        localResult = collectorSupplier.get();
+                        spliterator.forEachRemaining(this);
+                    }
+
+                    @Override
+                    public void compute() {
+                        Spliterator<R> rs = spliterator, ls;
+                        long sizeEstimate = rs.estimateSize();
+                        final long sizeThreshold = getTargetSize(sizeEstimate);
+                        Parallel task = this;
+                        boolean forkRight = false;
+                        while (sizeEstimate > sizeThreshold
+                            && (ls = rs.trySplit()) != null) {
+                            final var leftChild = task.leftChild = new Parallel(task, ls);
+                            final var rightChild = task.rightChild = new Parallel(task, rs);
+                            task.setPendingCount(1);
+                            if (forkRight) {
+                                rs = ls;
+                                task = leftChild;
+                                rightChild.fork();
+                            } else {
+                                task = rightChild;
+                                leftChild.fork();
+                            }
+                            forkRight = !forkRight;
+                            sizeEstimate = rs.estimateSize();
+                        }
+                        task.doProcess();
+                        task.tryComplete();
+                    }
+
+                    @Override
+                    public void onCompletion(CountedCompleter<?> caller) {
+                        spliterator = null; // GC assistance
+                        if (leftChild != null) {
+                            /* Results can only be null in the case where there's
+                             * short-circuiting or when Gatherers are stateful but
+                             * uses `null` as their state value.
+                             */
+                            //assert localResult == null;
+                            localResult = collectorCombiner.apply(leftChild.localResult, rightChild.localResult);
+                            leftChild = rightChild = null; // GC assistance
+                        }
+                    }
+                }
+                return new Parallel(spliterator).invoke();
+            }
+        }
+
         /*
          * evaluate(...) is the primary execution mechanism besides opWrapSink()
          * and implements both sequential, hybrid parallel-sequential, and
          * parallel evaluation
          */
+        @SuppressWarnings("unchecked")
         private static <T, A, R, CA, CR> CR evaluate(
             final Spliterator<T> spliterator,
             final int flags,
@@ -676,6 +786,16 @@ final class GStream {
             final BiConsumer<CA, ? super R> collectorAccumulator,
             final BinaryOperator<CA> collectorCombiner,
             final Function<CA, CR> collectorFinisher) {
+
+            // Disregard the Gatherer if it is identity
+            if (gatherer == identity)
+                return evaluate(
+                    (Spliterator<R>)spliterator,
+                    flags,
+                    collectorSupplier,
+                    collectorAccumulator,
+                    collectorCombiner, collectorFinisher
+                );
 
             // There are two main sections here: sequential and parallel
 
