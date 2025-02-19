@@ -124,8 +124,8 @@ final class GStream {
 
     @SuppressWarnings({"unchecked", "rawtypes"})
     @ForceInline
-    public static <T> Collector<? super T, ?, SpinedBuffer<T>> buffer() {
-        return (Collector<? super T, ?, SpinedBuffer<T>>)(Collector)BUFFER;
+    public static <T> Collector<? super T, SpinedBuffer<T>, SpinedBuffer<T>> buffer() {
+        return (Collector<? super T, SpinedBuffer<T>, SpinedBuffer<T>>)(Collector)BUFFER;
     }
 
     private final static Collector<? super Object, Cell<Object>, Optional<Object>> FIND_FIRST =
@@ -148,21 +148,58 @@ final class GStream {
 
 
     final static class OfRef<T> implements Stream<T> {
-        private final Spliterator<?> source;
+        private final Object source; // Either a Spliterator or a Supplier<Spliterator>
         private final Gatherer<?, ?, T> gatherer;
         private Runnable closeHandler;
         private int flags;
 
-        private static final int USED       = (1 << 0);
-        private static final int PARALLEL   = (1 << 1);
-        private static final int UNORDERED  = (1 << 2);
+        private static final int DEFERRED   = (1 << 0);
+        private static final int USED       = (1 << 1);
+        private static final int PARALLEL   = (1 << 2);
+        private static final int UNORDERED  = (1 << 3);
 
         OfRef(Spliterator<? extends T> spliterator) {
             //assert spliterator != null;
             this.source   = spliterator;
             this.gatherer = identity();
             //this.closeHandler = null;
-            //this.flags  = 0;
+            //this.flags  = 0; // FIXME translate Spliterator characteristics?
+        }
+
+        // TODO This is an experiment of segmented
+        // The idea is to package the evaluation of the previous segment
+        // as a Supplier<Spliterator<T>> using a SpinedBuffer to hold the
+        // intermediate values and then feed them into the current segment
+        OfRef(OfRef<T> upstream) {
+            // evaluation
+            //assert upstream != null;
+            //assert upstream.flags & USED == USED;
+            @SuppressWarnings("unchecked")
+            Supplier<Spliterator<T>> supplier = () -> {
+                if (upstream.gatherer == identity) {
+                    return upstream.resolveSpliterator();
+                } else {
+                    @SuppressWarnings("rawtypes")
+                    IntFunction rawGenerator = Object[]::new;
+                    var into = GStream.<T>buffer();
+                    return Arrays.spliterator(
+                        (T[])evaluate(
+                            upstream.resolveSpliterator(),
+                            upstream.flags,
+                            upstream.gatherer,
+                            into.supplier(),
+                            into.accumulator(),
+                            into.combiner(),
+                            into.finisher()
+                        ).asArray(rawGenerator)
+                    );
+                }
+            };
+
+            this.source   = supplier;
+            this.gatherer = identity();
+            this.closeHandler = upstream.closeHandler; // We need to make sure
+            this.flags  = upstream.flags | DEFERRED;
         }
 
         private OfRef(OfRef<?> upstream, Gatherer<?, ?, T> gatherer, int flags) {
@@ -191,10 +228,17 @@ final class GStream {
         public Spliterator<T> spliterator() {
             if (gatherer == identity) {
                 ensureUnusedThenUse();
-                return (Spliterator<T>) source;
+                return resolveSpliterator();
             } else {
                 return (Spliterator<T>) Arrays.spliterator(toArray()); // FIXME better impl
             }
+        }
+
+        @SuppressWarnings("unchecked")
+        private <X> Spliterator<X> resolveSpliterator() {
+            return ((flags & DEFERRED) != DEFERRED)
+                ? (Spliterator<X>) source
+                : ((Supplier<Spliterator<X>>)source).get();
         }
 
         @Override
@@ -558,7 +602,7 @@ final class GStream {
         public <RR, AA> RR collect(Collector<? super T, AA, RR> collector) {
             final int f = ensureUnusedThenUse();
             return evaluate(
-                (Spliterator<Object>) this.source,
+                resolveSpliterator(),
                 f,
                 (Gatherer<Object, ?, T>) this.gatherer,
                 collector.supplier(),
@@ -657,9 +701,15 @@ final class GStream {
         @Override
         public Optional<T> findAny() {
             // TODO if known size is 0, return Optional.empty() immediately
-            return unordered()
+            return unordered() // TODO should we force this or defer to user?
                 .gather(Gatherer.<T,T>of((v, e, d) -> d.push(e) & false))
                 .collect(GStream.findLast()); // TODO potentially fuse these operations
+        }
+
+        // FIXME this is just an idea of how we could run a stream in segments
+        OfRef<T> evaluated() {
+            final int f = ensureUnusedThenUse();
+            return new OfRef<>(this);
         }
 
         /*
