@@ -679,7 +679,10 @@ final class GStream {
 
             // There are two main sections here: sequential and parallel
 
-            final var integrator = gatherer.integrator();
+            final var initializer = gatherer.initializer();
+            final var integrator  = gatherer.integrator();
+            final var combiner    = gatherer.combiner();
+            final var finisher    = gatherer.finisher();
 
             // Optimization
             final boolean greedy = integrator instanceof Gatherer.Integrator.Greedy;
@@ -694,10 +697,10 @@ final class GStream {
                 boolean proceed;
 
                 Sequential() {
-                    var initializer = gatherer.initializer();
                     if (initializer != Gatherer.defaultInitializer())
                         state = initializer.get();
-                    collectorState = collectorSupplier.get();
+                    if (collectorSupplier != Gatherer.defaultInitializer())
+                        collectorState = collectorSupplier.get();
                     proceed = true;
                 }
 
@@ -731,14 +734,12 @@ final class GStream {
                      *
                      * proceed &= integrator.integrate(state, t, this);
                      */
-
                     var ignore =
                         integrator.integrate(state, t, this) || greedy || (proceed = false);
                 }
 
                 @SuppressWarnings("unchecked")
                 public CR get() {
-                    final var finisher = gatherer.finisher();
                     if (finisher != Gatherer.<A, R>defaultFinisher())
                         finisher.accept(state, this);
                     // IF collectorFinisher == null -> IDENTITY_FINISH
@@ -837,7 +838,7 @@ final class GStream {
                      * or when greedy
                      */
                     if (greedy || (l != null && r != null && (unordered != l.proceed))) {
-                        l.state = gatherer.combiner().apply(l.state, r.state); // FIXME conditional?
+                        l.state = combiner.apply(l.state, r.state); // FIXME conditional?
                         l.collectorState = collectorCombiner.apply(l.collectorState, r.collectorState);
                         l.proceed &= r.proceed;
                     }
@@ -907,7 +908,7 @@ final class GStream {
              * preprocessing which is the main advantage of the Hybrid evaluation
              * strategy.
              */
-            return ((flags & PARALLEL) != PARALLEL || gatherer.combiner() == Gatherer.defaultCombiner())
+            return ((flags & PARALLEL) != PARALLEL || combiner == Gatherer.defaultCombiner())
                 ? new Sequential().evaluateUsing(spliterator).get() // TODO validate EA
                 : new Parallel(spliterator).invoke().get();
         }

@@ -671,8 +671,7 @@ public final class Gatherers {
                          * known to be not-greedy.
                          */
                         return (leftIntegrator.integrate(leftState, t, r -> rightIntegrate(r, c))
-                                  || leftGreedy
-                                  || (leftProceed = false))
+                                  || leftGreedy || (leftProceed = false))
                                 && (rightGreedy || rightProceed);
                     }
 
@@ -704,8 +703,7 @@ public final class Gatherers {
                         // The following logic is highly performance sensitive
                         return (rightGreedy || rightProceed)
                                 && (rightIntegrator.integrate(rightState, r, downstream)
-                                || rightGreedy
-                                || (rightProceed = false));
+                                    || rightGreedy || (rightProceed = false));
                     }
                 }
 
