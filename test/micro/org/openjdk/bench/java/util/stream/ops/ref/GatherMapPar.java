@@ -38,8 +38,8 @@ import org.openjdk.jmh.annotations.Warmup;
 import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
-import java.util.stream.Stream;
 import java.util.stream.Gatherer;
+import java.util.stream.Stream;
 import static org.openjdk.bench.java.util.stream.ops.ref.BenchmarkGathererImpls.map;
 
 /**
@@ -92,18 +92,25 @@ public class GatherMapPar {
     }
 
     @Benchmark
-    public long par_invoke_gather() {
-        return Arrays.stream(cachedInputArray).parallel()
-                .gather(map(m1))
+    public long par_invoke_newimpl() {
+        return Stream.gStream(Arrays.spliterator(cachedInputArray)).parallel()
+                .map(m1)
                 .collect(LongAccumulator::new, LongAccumulator::add, LongAccumulator::merge).get();
     }
 
-    @Benchmark
-    public long par_invoke_gather_preallocated() {
-        return Arrays.stream(cachedInputArray).parallel()
-                .gather(gather_m1)
-                .collect(LongAccumulator::new, LongAccumulator::add, LongAccumulator::merge).get();
-    }
+//    @Benchmark
+//    public long par_invoke_gather() {
+//        return Arrays.stream(cachedInputArray).parallel()
+//                .gather(map(m1))
+//                .collect(LongAccumulator::new, LongAccumulator::add, LongAccumulator::merge).get();
+//    }
+//
+//    @Benchmark
+//    public long par_invoke_gather_preallocated() {
+//        return Arrays.stream(cachedInputArray).parallel()
+//                .gather(gather_m1)
+//                .collect(LongAccumulator::new, LongAccumulator::add, LongAccumulator::merge).get();
+//    }
 
     @Benchmark
     public long par_chain_111_baseline() {
@@ -115,27 +122,36 @@ public class GatherMapPar {
     }
 
     @Benchmark
-    public long par_chain_111_gather_separate() {
-        return Arrays.stream(cachedInputArray).parallel()
-                .gather(map(m1))
-                .gather(map(m1))
-                .gather(map(m1))
+    public long par_chain_111_newimpl() {
+        return Stream.gStream(Arrays.spliterator(cachedInputArray)).parallel()
+                .map(m1)
+                .map(m1)
+                .map(m1)
                 .collect(LongAccumulator::new, LongAccumulator::add, LongAccumulator::merge).get();
     }
 
-    @Benchmark
-    public long par_chain_111_gather_composed() {
-        return Arrays.stream(cachedInputArray).parallel()
-                .gather(gather_m1.andThen(gather_m1).andThen(gather_m1))
-                .collect(LongAccumulator::new, LongAccumulator::add, LongAccumulator::merge).get();
-    }
-
-    @Benchmark
-    public long par_chain_111_gather_precomposed() {
-        return Arrays.stream(cachedInputArray).parallel()
-                .gather(gather_m1_111)
-                .collect(LongAccumulator::new, LongAccumulator::add, LongAccumulator::merge).get();
-    }
+//    @Benchmark
+//    public long par_chain_111_gather_separate() {
+//        return Arrays.stream(cachedInputArray).parallel()
+//                .gather(map(m1))
+//                .gather(map(m1))
+//                .gather(map(m1))
+//                .collect(LongAccumulator::new, LongAccumulator::add, LongAccumulator::merge).get();
+//    }
+//
+//    @Benchmark
+//    public long par_chain_111_gather_composed() {
+//        return Arrays.stream(cachedInputArray).parallel()
+//                .gather(gather_m1.andThen(gather_m1).andThen(gather_m1))
+//                .collect(LongAccumulator::new, LongAccumulator::add, LongAccumulator::merge).get();
+//    }
+//
+//    @Benchmark
+//    public long par_chain_111_gather_precomposed() {
+//        return Arrays.stream(cachedInputArray).parallel()
+//                .gather(gather_m1_111)
+//                .collect(LongAccumulator::new, LongAccumulator::add, LongAccumulator::merge).get();
+//    }
 
     @Benchmark
     public long par_chain_123_baseline() {
@@ -147,25 +163,34 @@ public class GatherMapPar {
     }
 
     @Benchmark
-    public long par_chain_123_gather_separate() {
-        return Arrays.stream(cachedInputArray).parallel()
-                .gather(map(m1))
-                .gather(map(m2))
-                .gather(map(m3))
+    public long par_chain_123_newimpl() {
+        return Stream.gStream(Arrays.spliterator(cachedInputArray)).parallel()
+                .map(m1)
+                .map(m2)
+                .map(m3)
                 .collect(LongAccumulator::new, LongAccumulator::add, LongAccumulator::merge).get();
     }
 
-    @Benchmark
-    public long par_chain_123_gather_composed() {
-        return Arrays.stream(cachedInputArray).parallel()
-                .gather(map(m1).andThen(map(m2).andThen(map(m3))))
-                .collect(LongAccumulator::new, LongAccumulator::add, LongAccumulator::merge).get();
-    }
-
-    @Benchmark
-    public long par_chain_123_gather_precomposed() {
-        return Arrays.stream(cachedInputArray).parallel()
-                .gather(gather_all)
-                .collect(LongAccumulator::new, LongAccumulator::add, LongAccumulator::merge).get();
-    }
+//    @Benchmark
+//    public long par_chain_123_gather_separate() {
+//        return Arrays.stream(cachedInputArray).parallel()
+//                .gather(map(m1))
+//                .gather(map(m2))
+//                .gather(map(m3))
+//                .collect(LongAccumulator::new, LongAccumulator::add, LongAccumulator::merge).get();
+//    }
+//
+//    @Benchmark
+//    public long par_chain_123_gather_composed() {
+//        return Arrays.stream(cachedInputArray).parallel()
+//                .gather(map(m1).andThen(map(m2).andThen(map(m3))))
+//                .collect(LongAccumulator::new, LongAccumulator::add, LongAccumulator::merge).get();
+//    }
+//
+//    @Benchmark
+//    public long par_chain_123_gather_precomposed() {
+//        return Arrays.stream(cachedInputArray).parallel()
+//                .gather(gather_all)
+//                .collect(LongAccumulator::new, LongAccumulator::add, LongAccumulator::merge).get();
+//    }
 }

@@ -40,6 +40,7 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.Arrays;
 import java.util.stream.Gatherer;
+import java.util.stream.Stream;
 import static org.openjdk.bench.java.util.stream.ops.ref.BenchmarkGathererImpls.filter;
 import static org.openjdk.bench.java.util.stream.ops.ref.BenchmarkGathererImpls.map;
 
@@ -107,21 +108,32 @@ public class GatherMiscPar {
     }
 
     @Benchmark
-    public long par_misc_gather() {
-        return Arrays.stream(cachedInputArray)
+    public long par_misc_newimpl() {
+        return Stream.gStream(Arrays.spliterator(cachedInputArray))
                 .parallel()
-                .gather(filter(odds))
-                .gather(map(timesTwo))
-                .gather(map(halved))
-                .gather(filter(evens))
+                .filter(odds)
+                .map(timesTwo)
+                .map(halved)
+                .filter(evens)
                 .collect(LongAccumulator::new, LongAccumulator::add, LongAccumulator::merge).get();
     }
 
-    @Benchmark
-    public long par_misc_gather_precomposed() {
-        return Arrays.stream(cachedInputArray)
-                .parallel()
-                .gather(gathered)
-                .collect(LongAccumulator::new, LongAccumulator::add, LongAccumulator::merge).get();
-    }
+//    @Benchmark
+//    public long par_misc_gather() {
+//        return Arrays.stream(cachedInputArray)
+//                .parallel()
+//                .gather(filter(odds))
+//                .gather(map(timesTwo))
+//                .gather(map(halved))
+//                .gather(filter(evens))
+//                .collect(LongAccumulator::new, LongAccumulator::add, LongAccumulator::merge).get();
+//    }
+//
+//    @Benchmark
+//    public long par_misc_gather_precomposed() {
+//        return Arrays.stream(cachedInputArray)
+//                .parallel()
+//                .gather(gathered)
+//                .collect(LongAccumulator::new, LongAccumulator::add, LongAccumulator::merge).get();
+//    }
 }

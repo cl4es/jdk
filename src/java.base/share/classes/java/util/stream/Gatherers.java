@@ -32,9 +32,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
 import java.util.concurrent.FutureTask;
-import java.util.concurrent.Semaphore;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.BinaryOperator;
@@ -510,18 +508,6 @@ public final class Gatherers {
             Objects.requireNonNull(integrator, "integrator");
             Objects.requireNonNull(combiner, "combiner");
             Objects.requireNonNull(finisher, "finisher");
-        }
-
-        // Internal usage only
-        static <T, A, R> GathererImpl<T, A, R> of(Gatherer<T, A, R> gatherer) {
-            return (gatherer instanceof GathererImpl<T,A,R> g)
-                ? g
-                : new Gatherers.GathererImpl<>(
-                    gatherer.initializer(),
-                    gatherer.integrator(),
-                    gatherer.combiner(),
-                    gatherer.finisher()
-                );
         }
     }
 

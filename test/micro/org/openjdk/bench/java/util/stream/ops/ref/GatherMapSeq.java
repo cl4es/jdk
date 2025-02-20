@@ -40,6 +40,7 @@ import java.util.function.Function;
 import java.util.Arrays;
 import java.util.stream.Collector;
 import java.util.stream.Gatherer;
+import java.util.stream.Stream;
 import static org.openjdk.bench.java.util.stream.ops.ref.BenchmarkGathererImpls.map;
 
 /**
@@ -104,18 +105,25 @@ public class GatherMapSeq {
     }
 
     @Benchmark
-    public long seq_invoke_gather() {
-        return Arrays.stream(cachedInputArray)
-                .gather(map(m1))
+    public long seq_invoke_newimpl() {
+        return Stream.gStream(Arrays.spliterator(cachedInputArray))
+                .map(m1)
                 .collect(LongAccumulator::new, LongAccumulator::add, LongAccumulator::merge).get();
     }
 
-    @Benchmark
-    public long seq_invoke_gather_preallocated() {
-        return Arrays.stream(cachedInputArray)
-                .gather(gather_m1)
-                .collect(LongAccumulator::new, LongAccumulator::add, LongAccumulator::merge).get();
-    }
+//    @Benchmark
+//    public long seq_invoke_gather() {
+//        return Arrays.stream(cachedInputArray)
+//                .gather(map(m1))
+//                .collect(LongAccumulator::new, LongAccumulator::add, LongAccumulator::merge).get();
+//    }
+//
+//    @Benchmark
+//    public long seq_invoke_gather_preallocated() {
+//        return Arrays.stream(cachedInputArray)
+//                .gather(gather_m1)
+//                .collect(LongAccumulator::new, LongAccumulator::add, LongAccumulator::merge).get();
+//    }
 
     @Benchmark
     public long seq_chain_111_baseline() {
@@ -127,27 +135,36 @@ public class GatherMapSeq {
     }
 
     @Benchmark
-    public long seq_chain_111_gather_separate() {
-        return Arrays.stream(cachedInputArray)
-                .gather(map(m1))
-                .gather(map(m1))
-                .gather(map(m1))
+    public long seq_chain_111_newimpl() {
+        return Stream.gStream(Arrays.spliterator(cachedInputArray))
+                .map(m1)
+                .map(m1)
+                .map(m1)
                 .collect(LongAccumulator::new, LongAccumulator::add, LongAccumulator::merge).get();
     }
 
-    @Benchmark
-    public long seq_chain_111_gather_composed() {
-        return Arrays.stream(cachedInputArray)
-                .gather(map(m1).andThen(map(m1)).andThen(map(m1)))
-                .collect(LongAccumulator::new, LongAccumulator::add, LongAccumulator::merge).get();
-    }
-
-    @Benchmark
-    public long seq_chain_111_gather_precomposed() {
-        return Arrays.stream(cachedInputArray)
-                .gather(gather_m1_111)
-                .collect(LongAccumulator::new, LongAccumulator::add, LongAccumulator::merge).get();
-    }
+//    @Benchmark
+//    public long seq_chain_111_gather_separate() {
+//        return Arrays.stream(cachedInputArray)
+//                .gather(map(m1))
+//                .gather(map(m1))
+//                .gather(map(m1))
+//                .collect(LongAccumulator::new, LongAccumulator::add, LongAccumulator::merge).get();
+//    }
+//
+//    @Benchmark
+//    public long seq_chain_111_gather_composed() {
+//        return Arrays.stream(cachedInputArray)
+//                .gather(map(m1).andThen(map(m1)).andThen(map(m1)))
+//                .collect(LongAccumulator::new, LongAccumulator::add, LongAccumulator::merge).get();
+//    }
+//
+//    @Benchmark
+//    public long seq_chain_111_gather_precomposed() {
+//        return Arrays.stream(cachedInputArray)
+//                .gather(gather_m1_111)
+//                .collect(LongAccumulator::new, LongAccumulator::add, LongAccumulator::merge).get();
+//    }
 
     @Benchmark
     public long seq_chain_123_baseline() {
@@ -159,25 +176,34 @@ public class GatherMapSeq {
     }
 
     @Benchmark
-    public long seq_chain_123_gather_separate() {
-        return Arrays.stream(cachedInputArray)
-                .gather(map(m1))
-                .gather(map(m2))
-                .gather(map(m3))
+    public long seq_chain_123_newimpl() {
+        return Stream.gStream(Arrays.spliterator(cachedInputArray))
+                .map(m1)
+                .map(m2)
+                .map(m3)
                 .collect(LongAccumulator::new, LongAccumulator::add, LongAccumulator::merge).get();
     }
 
-    @Benchmark
-    public long seq_chain_123_gather_composed() {
-        return Arrays.stream(cachedInputArray)
-                .gather(map(m1).andThen(map(m2)).andThen(map(m3)))
-                .collect(LongAccumulator::new, LongAccumulator::add, LongAccumulator::merge).get();
-    }
-
-    @Benchmark
-    public long seq_chain_123_gather_precomposed() {
-        return Arrays.stream(cachedInputArray)
-                .gather(gather_all)
-                .collect(LongAccumulator::new, LongAccumulator::add, LongAccumulator::merge).get();
-    }
+//    @Benchmark
+//    public long seq_chain_123_gather_separate() {
+//        return Arrays.stream(cachedInputArray)
+//                .gather(map(m1))
+//                .gather(map(m2))
+//                .gather(map(m3))
+//                .collect(LongAccumulator::new, LongAccumulator::add, LongAccumulator::merge).get();
+//    }
+//
+//    @Benchmark
+//    public long seq_chain_123_gather_composed() {
+//        return Arrays.stream(cachedInputArray)
+//                .gather(map(m1).andThen(map(m2)).andThen(map(m3)))
+//                .collect(LongAccumulator::new, LongAccumulator::add, LongAccumulator::merge).get();
+//    }
+//
+//    @Benchmark
+//    public long seq_chain_123_gather_precomposed() {
+//        return Arrays.stream(cachedInputArray)
+//                .gather(gather_all)
+//                .collect(LongAccumulator::new, LongAccumulator::add, LongAccumulator::merge).get();
+//    }
 }

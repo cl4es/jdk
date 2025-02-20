@@ -40,6 +40,7 @@ import java.util.function.BinaryOperator;
 import java.util.Arrays;
 import java.util.stream.Collector;
 import java.util.stream.Gatherer;
+import java.util.stream.Stream;
 import static org.openjdk.bench.java.util.stream.ops.ref.BenchmarkGathererImpls.findFirst;
 import static org.openjdk.bench.java.util.stream.ops.ref.BenchmarkGathererImpls.reduce;
 
@@ -88,7 +89,12 @@ public class GatherReducePar {
     }
 
     @Benchmark
-    public long par_invoke_gather() {
-        return Arrays.stream(cachedInputArray).parallel().gather(reduce(op1)).collect(findFirst()).get();
+    public long par_invoke_newimpl() {
+        return Stream.gStream(Arrays.spliterator(cachedInputArray)).parallel().reduce(op1).get();
     }
+//
+//    @Benchmark
+//    public long par_invoke_gather() {
+//        return Arrays.stream(cachedInputArray).parallel().gather(reduce(op1)).collect(findFirst()).get();
+//    }
 }

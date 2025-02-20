@@ -38,8 +38,8 @@ import org.openjdk.jmh.annotations.Warmup;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.Arrays;
-import java.util.stream.Stream;
 import java.util.stream.Gatherer;
+import java.util.stream.Stream;
 import static org.openjdk.bench.java.util.stream.ops.ref.BenchmarkGathererImpls.flatMap;
 
 /**
@@ -90,16 +90,23 @@ public class GatherFlatMapSeq {
     }
 
     @Benchmark
-    public long seq_invoke_gather() {
-        return Arrays.stream(cachedInputArray)
-                .gather(flatMap(fun))
+    public long seq_invoke_newimpl() {
+        return Stream.gStream(Arrays.spliterator(cachedInputArray))
+                .flatMap(fun)
                 .collect(LongAccumulator::new, LongAccumulator::add, LongAccumulator::merge).get();
     }
 
-    @Benchmark
-    public long seq_invoke_gather_preallocated() {
-        return Arrays.stream(cachedInputArray)
-                .gather(gather_flatMap)
-                .collect(LongAccumulator::new, LongAccumulator::add, LongAccumulator::merge).get();
-    }
+//    @Benchmark
+//    public long seq_invoke_gather() {
+//        return Arrays.stream(cachedInputArray)
+//                .gather(flatMap(fun))
+//                .collect(LongAccumulator::new, LongAccumulator::add, LongAccumulator::merge).get();
+//    }
+//
+//    @Benchmark
+//    public long seq_invoke_gather_preallocated() {
+//        return Arrays.stream(cachedInputArray)
+//                .gather(gather_flatMap)
+//                .collect(LongAccumulator::new, LongAccumulator::add, LongAccumulator::merge).get();
+//    }
 }

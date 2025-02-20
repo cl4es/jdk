@@ -40,6 +40,7 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.Arrays;
 import java.util.stream.Gatherer;
+import java.util.stream.Stream;
 import static org.openjdk.bench.java.util.stream.ops.ref.BenchmarkGathererImpls.filter;
 import static org.openjdk.bench.java.util.stream.ops.ref.BenchmarkGathererImpls.map;
 
@@ -93,44 +94,53 @@ public class GatherFMRPar {
     }
 
     @Benchmark
-    public long par_fmr_gather() {
-        return Arrays.stream(cachedInputArray)
-                .parallel()
-                .gather(filter(evens))
-                .gather(map(squared))
-                .collect(LongAccumulator::new, LongAccumulator::add, LongAccumulator::merge).get();
+    public long par_fmr_newimpl() {
+        return Stream.gStream(Arrays.spliterator(cachedInputArray))
+            .parallel()
+            .filter(evens)
+            .map(squared)
+            .collect(LongAccumulator::new, LongAccumulator::add, LongAccumulator::merge).get();
     }
-
-    @Benchmark
-    public long par_fmr_gather_preallocated() {
-        return Arrays.stream(cachedInputArray)
-                .parallel()
-                .gather(ga_filter_evens)
-                .gather(ga_map_squared)
-                .collect(LongAccumulator::new, LongAccumulator::add, LongAccumulator::merge).get();
-    }
-
-    @Benchmark
-    public long par_fmr_gather_composed() {
-        return Arrays.stream(cachedInputArray)
-                .parallel()
-                .gather(filter(evens).andThen(map(squared)))
-                .collect(LongAccumulator::new, LongAccumulator::add, LongAccumulator::merge).get();
-    }
-
-    @Benchmark
-    public long par_fmr_gather_composed_preallocated() {
-        return Arrays.stream(cachedInputArray)
-                .parallel()
-                .gather(filter(evens).andThen(map(squared)))
-                .collect(LongAccumulator::new, LongAccumulator::add, LongAccumulator::merge).get();
-    }
-
-    @Benchmark
-    public long par_fmr_gather_precomposed() {
-        return Arrays.stream(cachedInputArray)
-                .parallel()
-                .gather(gathered)
-                .collect(LongAccumulator::new, LongAccumulator::add, LongAccumulator::merge).get();
-    }
+//
+//    @Benchmark
+//    public long par_fmr_gather() {
+//        return Arrays.stream(cachedInputArray)
+//                .parallel()
+//                .gather(filter(evens))
+//                .gather(map(squared))
+//                .collect(LongAccumulator::new, LongAccumulator::add, LongAccumulator::merge).get();
+//    }
+//
+//    @Benchmark
+//    public long par_fmr_gather_preallocated() {
+//        return Arrays.stream(cachedInputArray)
+//                .parallel()
+//                .gather(ga_filter_evens)
+//                .gather(ga_map_squared)
+//                .collect(LongAccumulator::new, LongAccumulator::add, LongAccumulator::merge).get();
+//    }
+//
+//    @Benchmark
+//    public long par_fmr_gather_composed() {
+//        return Arrays.stream(cachedInputArray)
+//                .parallel()
+//                .gather(filter(evens).andThen(map(squared)))
+//                .collect(LongAccumulator::new, LongAccumulator::add, LongAccumulator::merge).get();
+//    }
+//
+//    @Benchmark
+//    public long par_fmr_gather_composed_preallocated() {
+//        return Arrays.stream(cachedInputArray)
+//                .parallel()
+//                .gather(filter(evens).andThen(map(squared)))
+//                .collect(LongAccumulator::new, LongAccumulator::add, LongAccumulator::merge).get();
+//    }
+//
+//    @Benchmark
+//    public long par_fmr_gather_precomposed() {
+//        return Arrays.stream(cachedInputArray)
+//                .parallel()
+//                .gather(gathered)
+//                .collect(LongAccumulator::new, LongAccumulator::add, LongAccumulator::merge).get();
+//    }
 }

@@ -41,6 +41,7 @@ import java.util.function.Predicate;
 import java.util.Objects;
 import java.util.Arrays;
 import java.util.stream.Gatherer;
+import java.util.stream.Stream;
 import static org.openjdk.bench.java.util.stream.ops.ref.BenchmarkGathererImpls.takeWhile;
 
 /**
@@ -97,17 +98,23 @@ public class GatherWhileOrdered {
     }
 
     @Benchmark
-    public long seq_invoke_gather() {
-        return Arrays.stream(cachedInputArray).gather(takeWhile(predicate))
-                         .collect(LongAccumulator::new, LongAccumulator::add, LongAccumulator::merge).get();
+    public long seq_invoke_newimpl() {
+        return Stream.gStream(Arrays.spliterator(cachedInputArray)).takeWhile(predicate)
+            .collect(LongAccumulator::new, LongAccumulator::add, LongAccumulator::merge).get();
     }
-
-    @Benchmark
-    public long seq_invoke_gather_preallocated() {
-        return Arrays.stream(cachedInputArray).gather(gather_takeWhile)
-                         .collect(LongAccumulator::new, LongAccumulator::add, LongAccumulator::merge).get();
-    }
-
+//
+//    @Benchmark
+//    public long seq_invoke_gather() {
+//        return Arrays.stream(cachedInputArray).gather(takeWhile(predicate))
+//                         .collect(LongAccumulator::new, LongAccumulator::add, LongAccumulator::merge).get();
+//    }
+//
+//    @Benchmark
+//    public long seq_invoke_gather_preallocated() {
+//        return Arrays.stream(cachedInputArray).gather(gather_takeWhile)
+//                         .collect(LongAccumulator::new, LongAccumulator::add, LongAccumulator::merge).get();
+//    }
+//
     @Benchmark
     public long par_invoke_baseline() {
         return Arrays.stream(cachedInputArray).parallel().takeWhile(predicate)
@@ -115,14 +122,20 @@ public class GatherWhileOrdered {
     }
 
     @Benchmark
-    public long par_invoke_gather() {
-        return Arrays.stream(cachedInputArray).parallel().gather(takeWhile(predicate))
-                .collect(LongAccumulator::new, LongAccumulator::add, LongAccumulator::merge).get();
+    public long par_invoke_newimpl() {
+        return Stream.gStream(Arrays.spliterator(cachedInputArray)).parallel().takeWhile(predicate)
+            .collect(LongAccumulator::new, LongAccumulator::add, LongAccumulator::merge).get();
     }
-
-    @Benchmark
-    public long par_invoke_gather_preallocated() {
-        return Arrays.stream(cachedInputArray).parallel().gather(gather_takeWhile)
-                .collect(LongAccumulator::new, LongAccumulator::add, LongAccumulator::merge).get();
-    }
+//
+//    @Benchmark
+//    public long par_invoke_gather() {
+//        return Arrays.stream(cachedInputArray).parallel().gather(takeWhile(predicate))
+//                .collect(LongAccumulator::new, LongAccumulator::add, LongAccumulator::merge).get();
+//    }
+//
+//    @Benchmark
+//    public long par_invoke_gather_preallocated() {
+//        return Arrays.stream(cachedInputArray).parallel().gather(gather_takeWhile)
+//                .collect(LongAccumulator::new, LongAccumulator::add, LongAccumulator::merge).get();
+//    }
 }

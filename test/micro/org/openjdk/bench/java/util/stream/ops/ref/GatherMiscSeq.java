@@ -41,6 +41,7 @@ import java.util.function.Predicate;
 import java.util.Arrays;
 import java.util.Optional;
 import java.util.stream.Gatherer;
+import java.util.stream.Stream;
 import static org.openjdk.bench.java.util.stream.ops.ref.BenchmarkGathererImpls.filter;
 import static org.openjdk.bench.java.util.stream.ops.ref.BenchmarkGathererImpls.findLast;
 import static org.openjdk.bench.java.util.stream.ops.ref.BenchmarkGathererImpls.map;
@@ -114,51 +115,61 @@ public class GatherMiscSeq {
     }
 
     @Benchmark
-    public long seq_misc_gather() {
-        return Arrays.stream(cachedInputArray)
-                .gather(filter(odds))
-                .gather(map(timesTwo))
-                .gather(map(squared))
-                .gather(filter(evens))
-                .collect(findLast()).get();
+    public long seq_misc_newimpl() {
+        return Stream.gStream(Arrays.spliterator(cachedInputArray))
+            .filter(odds)
+            .map(timesTwo)
+            .map(squared)
+            .filter(evens)
+            .collect(findLast()).get();
     }
-
-    @Benchmark
-    public long seq_misc_gather_preallocated() {
-        return Arrays.stream(cachedInputArray)
-                .gather(ga_filter_odds)
-                .gather(ga_map_timesTwo)
-                .gather(ga_map_squared)
-                .gather(ga_filter_evens)
-                .collect(findLast()).get();
-    }
-
-    @Benchmark
-    public long seq_misc_gather_composed() {
-        return Arrays.stream(cachedInputArray)
-                .gather(filter(odds)
-                        .andThen(map(timesTwo))
-                        .andThen(map(squared))
-                        .andThen(filter(evens))
-                )
-                .collect(findLast()).get();
-    }
-
-    @Benchmark
-    public long seq_misc_gather_composed_preallocated() {
-        return Arrays.stream(cachedInputArray)
-                .gather(ga_filter_odds
-                        .andThen(ga_map_timesTwo)
-                        .andThen(ga_map_squared)
-                        .andThen(ga_filter_evens)
-                )
-                .collect(findLast()).get();
-    }
-
-    @Benchmark
-    public long seq_misc_gather_precomposed() {
-        return Arrays.stream(cachedInputArray)
-                .gather(gathered)
-                .collect(findLast()).get();
-    }
+//
+//    @Benchmark
+//    public long seq_misc_gather() {
+//        return Arrays.stream(cachedInputArray)
+//                .gather(filter(odds))
+//                .gather(map(timesTwo))
+//                .gather(map(squared))
+//                .gather(filter(evens))
+//                .collect(findLast()).get();
+//    }
+//
+//    @Benchmark
+//    public long seq_misc_gather_preallocated() {
+//        return Arrays.stream(cachedInputArray)
+//                .gather(ga_filter_odds)
+//                .gather(ga_map_timesTwo)
+//                .gather(ga_map_squared)
+//                .gather(ga_filter_evens)
+//                .collect(findLast()).get();
+//    }
+//
+//    @Benchmark
+//    public long seq_misc_gather_composed() {
+//        return Arrays.stream(cachedInputArray)
+//                .gather(filter(odds)
+//                        .andThen(map(timesTwo))
+//                        .andThen(map(squared))
+//                        .andThen(filter(evens))
+//                )
+//                .collect(findLast()).get();
+//    }
+//
+//    @Benchmark
+//    public long seq_misc_gather_composed_preallocated() {
+//        return Arrays.stream(cachedInputArray)
+//                .gather(ga_filter_odds
+//                        .andThen(ga_map_timesTwo)
+//                        .andThen(ga_map_squared)
+//                        .andThen(ga_filter_evens)
+//                )
+//                .collect(findLast()).get();
+//    }
+//
+//    @Benchmark
+//    public long seq_misc_gather_precomposed() {
+//        return Arrays.stream(cachedInputArray)
+//                .gather(gathered)
+//                .collect(findLast()).get();
+//    }
 }

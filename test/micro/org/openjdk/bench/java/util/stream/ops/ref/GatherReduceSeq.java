@@ -93,12 +93,17 @@ public class GatherReduceSeq {
     }
 
     @Benchmark
-    public long seq_invoke_gather() {
-        return Arrays.stream(cachedInputArray).gather(reduce(op1)).collect(findFirst()).get();
+    public long seq_invoke_newimpl() {
+        return Stream.gStream(Arrays.spliterator(cachedInputArray)).reduce(op1).get();
     }
 
-    @Benchmark
-    public long seq_invoke_gather_preallocated() {
-        return Arrays.stream(cachedInputArray).gather(gather_op1).collect(findFirst()).get();
-    }
+//    @Benchmark
+//    public long seq_invoke_gather() {
+//        return Arrays.stream(cachedInputArray).gather(reduce(op1)).collect(findFirst()).get();
+//    }
+//
+//    @Benchmark
+//    public long seq_invoke_gather_preallocated() {
+//        return Arrays.stream(cachedInputArray).gather(gather_op1).collect(findFirst()).get();
+//    }
 }

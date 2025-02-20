@@ -211,7 +211,6 @@ final class GStream {
             this.gatherer     = gatherer;
         }
 
-        @ForceInline
         private final int ensureUnusedThenUse() {
             int f;
             if (((f = flags) & USED) == USED)
@@ -303,6 +302,7 @@ final class GStream {
         @Override
         public <R> OfRef<R> map(Function<? super T, ? extends R> mapper) {
             Objects.requireNonNull(mapper, "mapper");
+
             return gather(
                 Gatherer.of(
                     Gatherer.Integrator.ofGreedy(
@@ -707,7 +707,7 @@ final class GStream {
         }
 
         // FIXME this is just an idea of how we could run a stream in segments
-        OfRef<T> evaluated() {
+        OfRef<T> happensBefore() {
             final int f = ensureUnusedThenUse();
             return new OfRef<>(this);
         }
