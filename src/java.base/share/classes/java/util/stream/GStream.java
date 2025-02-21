@@ -147,6 +147,133 @@ final class GStream {
         );
 
 
+    private record MappingGatherer<T, R>(Function<? super T, ? extends R> mapper)
+        implements Gatherer<T, Void, R>, Gatherer.Integrator.Greedy<Void, T, R> {
+
+//        MappingGatherer {
+//            Objects.requireNonNull(mapper, "mapper");
+//        }
+
+        @Override public Integrator<Void, T, R> integrator() { return this; }
+        @Override public BinaryOperator<Void> combiner() { return Gatherers.Value.DEFAULT.statelessCombiner; }
+
+        @Override
+        public <RR> Gatherer<T, ?, RR> andThen(Gatherer<? super R, ?, ? extends RR> that) {
+            if (that.getClass() == MappingGatherer.class) { // Implicit null-check of that
+                @SuppressWarnings("unchecked")
+                var thatMapper = ((MappingGatherer<R,RR>)that).mapper;
+                return new MappingGatherer<>(this.mapper.andThen(thatMapper));
+            } else
+                return Gatherer.super.andThen(that);
+        }
+
+        @Override
+        public boolean integrate(Void state, T element, Gatherer.Downstream<? super R> downstream) {
+            return downstream.push(mapper.apply(element));
+        }
+    }
+
+
+    private record FilteringGatherer<TR>(Predicate<? super TR> predicate)
+        implements Gatherer<TR, Void, TR>, Gatherer.Integrator.Greedy<Void, TR, TR> {
+
+//        FilteringGatherer {
+//            Objects.requireNonNull(predicate, "predicate");
+//        }
+
+        @Override public Integrator<Void, TR, TR> integrator() { return this; }
+        @Override public BinaryOperator<Void> combiner() { return Gatherers.Value.DEFAULT.statelessCombiner; }
+
+        @Override
+        public boolean integrate(Void state, TR element, Gatherer.Downstream<? super TR> downstream) {
+            return !predicate.test(element) || downstream.push(element);
+        }
+
+        @Override
+        @SuppressWarnings("unchecked")
+        public <RR> Gatherer<TR, ?, RR> andThen(Gatherer<? super TR, ?, ? extends RR> that) {
+            var thatClass = that.getClass(); // Implicit null-check of that
+            if (thatClass == FilteringGatherer.class) {
+                var first = predicate;
+                var second = ((FilteringGatherer<TR>) that).predicate;
+                return (Gatherer<TR, ?, RR>) new FilteringGatherer<TR>(e -> first.test(e) && second.test(e));
+            } else if (thatClass == MappingGatherer.class) {
+                final var thatMapper = (MappingGatherer<TR, RR>)that;
+                return new FilteringMappingGatherer<>(predicate, thatMapper.mapper);
+            } else if (thatClass == FilteringMappingGatherer.class) {
+                var first = predicate;
+                var thatFilterMapper = ((FilteringMappingGatherer<TR, RR>) that);
+                var second = thatFilterMapper.predicate;
+                return new FilteringMappingGatherer<>(e -> first.test(e) && second.test(e), thatFilterMapper.mapper);
+            } else
+                return Gatherer.super.andThen(that);
+        }
+    }
+
+    private record FilteringMappingGatherer<T, R>(Predicate<? super T> predicate, Function<? super T, ? extends R> mapper)
+        implements Gatherer<T, Void, R>, Gatherer.Integrator.Greedy<Void, T, R>, BinaryOperator<Void> {
+//        FilteringMappingGatherer {
+//            Objects.requireNonNull(predicate, "predicate");
+//            Objects.requireNonNull(mapper, "mapper");
+//        }
+
+        @Override public Integrator<Void, T, R> integrator() { return this; }
+        @Override public BinaryOperator<Void> combiner() { return this; }
+        @Override public Void apply(Void left, Void right) { return left; }
+
+        @Override
+        public <RR> Gatherer<T, ?, RR> andThen(Gatherer<? super R, ?, ?
+            extends RR> that) {
+            if (that.getClass() == MappingGatherer.class) { // Implicit null-check of that
+                @SuppressWarnings("unchecked")
+                var thatMapper = ((MappingGatherer<R, RR>)that).mapper;
+                return new FilteringMappingGatherer<>(this.predicate, this.mapper.andThen(thatMapper));
+            } else
+                return Gatherer.super.andThen(that);
+        }
+
+        @Override
+        public boolean integrate(Void state, T element, Gatherer.Downstream<? super R> downstream) {
+            return !predicate.test(element) || downstream.push(mapper.apply(element));
+        }
+    }
+
+    private record FlatMappingGatherer<T, R>(Function<? super T, ? extends Stream<? extends R>> mapper)
+        implements Gatherer<T,Void,R>, Gatherer.Integrator<Void,T,R> {
+//        FlatMappingGatherer {
+//            Objects.requireNonNull(mapper, "mapper");
+//        }
+        @Override public Integrator<Void, T, R> integrator() { return this; }
+        @Override public BinaryOperator<Void> combiner() { return Gatherers.Value.DEFAULT.statelessCombiner; }
+
+        private static final RuntimeException SHORT_CIRCUIT = new RuntimeException() {
+            @Override public synchronized Throwable fillInStackTrace() { return this; }
+        };
+
+        @Override public boolean integrate(Void state, T element, Gatherer.Downstream<? super R> downstream) {
+//            TODO: The following is the cleanest impl, but doesn't perform ideal
+//                  if there are no short-circuiting operations between this and the
+//                  terminal operation we can replace allMatch with a forEach
+//            try(Stream<? extends R> s = mapper.apply(element)) {
+//                return s != null ? s.sequential().allMatch(downstream::push) : true;
+//            }
+            try (Stream<? extends R> s = mapper.apply(element)) {
+                if (s != null) {
+                    s.sequential().spliterator().forEachRemaining(e -> {
+                        if (!downstream.push(e)) throw SHORT_CIRCUIT;
+                    });
+                }
+                return true;
+            } catch (RuntimeException e) {
+                if (e == SHORT_CIRCUIT)
+                    return false;
+
+                throw e; // Rethrow anything else
+            }
+        }
+    }
+
+
     final static class OfRef<T> implements Stream<T> {
         private final Object source; // Either a Spliterator or a Supplier<Spliterator>
         private final Gatherer<?, ?, T> gatherer;
@@ -174,16 +301,13 @@ final class GStream {
             // evaluation
             //assert upstream != null;
             //assert upstream.flags & USED == USED;
-            @SuppressWarnings("unchecked")
-            Supplier<Spliterator<T>> supplier = () -> {
+
+            this.source = (Supplier<Spliterator<T>>) () -> {
                 if (upstream.gatherer == identity) {
                     return upstream.resolveSpliterator();
                 } else {
-                    @SuppressWarnings("rawtypes")
-                    IntFunction rawGenerator = Object[]::new;
                     var into = GStream.<T>buffer();
-                    return Arrays.spliterator(
-                        (T[])evaluate(
+                    return evaluate(
                             upstream.resolveSpliterator(),
                             upstream.flags,
                             upstream.gatherer,
@@ -191,12 +315,9 @@ final class GStream {
                             into.accumulator(),
                             into.combiner(),
                             into.finisher()
-                        ).asArray(rawGenerator)
-                    );
+                        ).spliterator();
                 }
             };
-
-            this.source   = supplier;
             this.gatherer = identity();
             this.closeHandler = upstream.closeHandler; // We need to make sure
             this.flags  = upstream.flags | DEFERRED;
@@ -229,15 +350,22 @@ final class GStream {
                 ensureUnusedThenUse();
                 return resolveSpliterator();
             } else {
-                return (Spliterator<T>) Arrays.spliterator(toArray()); // FIXME better impl
+                return (Spliterator<T>) Arrays.spliterator(toArray()); // FIXME better impl?
             }
         }
 
         @SuppressWarnings("unchecked")
+        @ForceInline
         private <X> Spliterator<X> resolveSpliterator() {
             return ((flags & DEFERRED) != DEFERRED)
                 ? (Spliterator<X>) source
                 : ((Supplier<Spliterator<X>>)source).get();
+        }
+
+        @SuppressWarnings("unchecked")
+        @ForceInline
+        private <X> Gatherer<X,?,T> resolveGatherer() {
+            return (Gatherer<X, ?, T>) gatherer;
         }
 
         @Override
@@ -289,27 +417,12 @@ final class GStream {
 
         @Override
         public OfRef<T> filter(Predicate<? super T> predicate) {
-            Objects.requireNonNull(predicate, "predicate");
-            return gather(
-                Gatherer.of(
-                    Gatherer.Integrator.ofGreedy(
-                        (v, e, d) -> !predicate.test(e) || d.push(e)
-                    )
-                )
-            );
+            return gather(new FilteringGatherer<>(Objects.requireNonNull(predicate, "predicate")));
         }
 
         @Override
         public <R> OfRef<R> map(Function<? super T, ? extends R> mapper) {
-            Objects.requireNonNull(mapper, "mapper");
-
-            return gather(
-                Gatherer.of(
-                    Gatherer.Integrator.ofGreedy(
-                        (v, e, d) -> d.push(mapper.apply(e))
-                    )
-                )
-            );
+            return gather(new MappingGatherer<>(Objects.requireNonNull(mapper, "mapper")));
         }
 
         @Override
@@ -331,16 +444,7 @@ final class GStream {
 
         @Override
         public <R> OfRef<R> flatMap(Function<? super T, ? extends Stream<? extends R>> mapper) {
-            Objects.requireNonNull(mapper, "mapper");
-            return gather(
-                Gatherer.of(
-                    (v, e, d) -> {
-                        try (var s = mapper.apply(e)) {
-                            return s == null || s.sequential().allMatch(d::push);
-                        }
-                    }
-                )
-            );
+            return gather(new FlatMappingGatherer<>(Objects.requireNonNull(mapper, "mapper")));
         }
 
         @Override public IntStream flatMapToInt(Function<? super T, ? extends IntStream> mapper) { throw new UnsupportedOperationException(); }
@@ -355,7 +459,7 @@ final class GStream {
                 Gatherer.of(
                     (v, e, d) -> {
                         mapper.accept(e, (Consumer<R>) d::push);
-                        return !d.isRejecting(); // Best we can do
+                        return !d.isRejecting(); // Best we can do (unless we track push return state)
                     }
                 )
             );
@@ -369,6 +473,7 @@ final class GStream {
 
         @Override
         public OfRef<T> distinct() {
+            // FIXME reimplement using a better solution
             return gather(
                 Gatherer.of(
                     LinkedHashSet<T>::new,
@@ -384,6 +489,7 @@ final class GStream {
         @Override
         public OfRef<T> sorted(Comparator<? super T> comparator) {
             Objects.requireNonNull(comparator, "comparator");
+            // FIXME reimplement using a better solution
             return gather(
                 Gatherer.ofSequential(
                     ArrayList<T>::new,
@@ -410,7 +516,6 @@ final class GStream {
 
             final class Limit {
                 long left = maxSize;
-
                 boolean integrate(T e, Gatherer.Downstream<? super T> d) {
                     long l;
                     return ((l = left) != 0) && (d.push(e) & (left = l - 1) != 0);
@@ -476,6 +581,8 @@ final class GStream {
         }
 
         @Override public void forEach(Consumer<? super T> action) {
+            Objects.requireNonNull(action, "action");
+            // TODO possible to optimize this for sequential streams where gatherer == identity()
             collect(
                 new Collectors.CollectorImpl<>(
                     Gatherer.defaultInitializer(),
@@ -488,6 +595,8 @@ final class GStream {
 
         @SuppressWarnings("unchecked")
         @Override public void forEachOrdered(Consumer<? super T> action) {
+            // TODO possible to optimize this for sequential streams where gatherer == identity()
+            Objects.requireNonNull(action, "action");
             sequential()
                 .collect(
                     new Collectors.CollectorImpl<>(
@@ -503,7 +612,6 @@ final class GStream {
             return toArray(Object[]::new);
         }
 
-        @SuppressWarnings("unchecked")
         @Override public <A> A[] toArray(IntFunction<A[]> generator) {
             // Since A has no relation to U (not possible to declare that A is an upper bound of U)
             // there will be no static type checking.
@@ -512,17 +620,20 @@ final class GStream {
             // The runtime type of U is never checked for equality with the component type of the runtime type of A[].
             // Runtime checking will be performed when an element is stored in A[], thus if A is not a
             // super type of U an ArrayStoreException will be thrown.
-            @SuppressWarnings("rawtypes")
-            IntFunction rawGenerator = generator;
-            return (A[])collect(GStream.buffer()).asArray(rawGenerator);
+            @SuppressWarnings({"rawtypes", "unchecked"})
+            A[] result = (A[])collect(GStream.buffer()).asArray((IntFunction)generator);
+            return result;
         }
 
         @Override
-        public T reduce(T identity, BinaryOperator<T> accumulator) { return reduce(identity, accumulator, accumulator); }
+        public T reduce(T identity, BinaryOperator<T> accumulator) {
+            return reduce(identity, accumulator, accumulator);
+        }
 
         @Override
         public Optional<T> reduce(BinaryOperator<T> accumulator) {
             Objects.requireNonNull(accumulator, "accumulator");
+            // TODO possibility of returning Optional.empty() if known empty and gatherer == identity()
             final class Reducer {
                 boolean hasValue;
                 T value;
@@ -557,20 +668,17 @@ final class GStream {
         public <U> U reduce(U identity, BiFunction<U, ? super T, U> accumulator, BinaryOperator<U> combiner) {
             Objects.requireNonNull(accumulator, "accumulator");
             Objects.requireNonNull(combiner, "combiner");
+            // TODO possibility of returning identity if known empty and gatherer == identity()
             final class Reducer {
                 U value = identity;
-                void accumulate(T v) {
-                    value = accumulator.apply(value, v);
-                }
+                void accumulate(T v) { value = accumulator.apply(value, v); }
 
                 Reducer combine(Reducer right) {
                     this.value = combiner.apply(this.value, right.value);
                     return this;
                 }
 
-                U value() {
-                    return this.value;
-                }
+                U value() { return this.value; }
             }
 
             return collect(
@@ -586,6 +694,8 @@ final class GStream {
 
         @Override
         public <R> R collect(Supplier<R> supplier, BiConsumer<R, ? super T> accumulator, BiConsumer<R, R> combiner) {
+            Objects.requireNonNull(supplier, "supplier");
+            Objects.requireNonNull(accumulator, "accumulator");
             Objects.requireNonNull(combiner, "combiner");
             return collect(
                 new Collectors.CollectorImpl<>(
@@ -598,16 +708,15 @@ final class GStream {
         }
 
         @Override
-        @SuppressWarnings("unchecked")
         public <RR, AA> RR collect(Collector<? super T, AA, RR> collector) {
             final int f = ensureUnusedThenUse();
             return evaluate(
                 resolveSpliterator(),
                 f,
-                (Gatherer<Object, ?, T>) this.gatherer,
+                resolveGatherer(),
                 collector.supplier(),
                 collector.accumulator(),
-                (f & PARALLEL) == PARALLEL ? collector.combiner() : null,
+                (f & PARALLEL) != PARALLEL ? null : collector.combiner(),
                 collector.characteristics().contains(Collector.Characteristics.IDENTITY_FINISH)
                     ? null
                     : collector.finisher()
@@ -634,7 +743,7 @@ final class GStream {
 
         @Override
         public long count() {
-            // TODO optimize based on size
+            // TODO optimize based on size, and whether the gatherer is identity or not
             return collect(Collectors.counting());
         }
 
@@ -717,7 +826,6 @@ final class GStream {
          * and implements both sequential, hybrid parallel-sequential, and
          * parallel evaluation
          */
-        @SuppressWarnings("unchecked")
         private static <T, A, R, CA, CR> CR evaluate(
             final Spliterator<T> spliterator,
             final int flags,
@@ -747,9 +855,9 @@ final class GStream {
                 boolean proceed;
 
                 Sequential() {
-                    if (initializer != Gatherer.defaultInitializer())
+                    if (initializer != Gatherers.Value.DEFAULT)
                         state = initializer.get();
-                    if (collectorSupplier != Gatherer.defaultInitializer())
+                    if (collectorSupplier != Gatherers.Value.DEFAULT)
                         collectorState = collectorSupplier.get();
                     proceed = true;
                 }
@@ -789,18 +897,14 @@ final class GStream {
                 }
 
                 @SuppressWarnings("unchecked")
+                @ForceInline
                 public CR get() {
-                    if (finisher != Gatherer.<A, R>defaultFinisher())
+                    if (finisher != Gatherers.Value.DEFAULT)
                         finisher.accept(state, this);
                     // IF collectorFinisher == null -> IDENTITY_FINISH
                     return (collectorFinisher == null)
                         ? (CR) collectorState
                         : collectorFinisher.apply(collectorState);
-                }
-
-                @Override
-                public String toString() {
-                    return "Sequential[collectorState=" + collectorState + ", proceed=" + proceed + "]";
                 }
             }
 
@@ -959,7 +1063,7 @@ final class GStream {
              * strategy.
              */
             return ((flags & PARALLEL) != PARALLEL || combiner == Gatherer.defaultCombiner())
-                ? new Sequential().evaluateUsing(spliterator).get() // TODO validate EA
+                ? new Sequential().evaluateUsing(spliterator).get()
                 : new Parallel(spliterator).invoke().get();
         }
     }

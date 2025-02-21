@@ -26,6 +26,7 @@ package java.util.stream;
 
 import jdk.internal.access.SharedSecrets;
 import jdk.internal.vm.annotation.ForceInline;
+import jdk.internal.vm.annotation.Stable;
 
 import java.util.ArrayDeque;
 import java.util.List;
@@ -517,27 +518,19 @@ public final class Gatherers {
         // FIXME change `impl` to a computed constant when available
         private GathererImpl<T, Object, RR> impl;
 
-        static <T, A, R, AA, RR> Composite<T, A, R, AA, RR> of(
-                Gatherer<T, A, ? extends R> left,
-                Gatherer<? super R, AA, ? extends RR> right) {
-            return new Composite<>(left, right);
-        }
-
-        private Composite(Gatherer<T, A, ? extends R> left,
-                          Gatherer<? super R, AA, ? extends RR> right) {
+        Composite(Gatherer<T, A, ? extends R> left, Gatherer<? super R, AA, ? extends RR> right) {
             this.left = left;
             this.right = right;
         }
 
+        @ForceInline
         @SuppressWarnings("unchecked")
         private GathererImpl<T, Object, RR> impl() {
             // ATTENTION: this method currently relies on a "benign" data-race
             // as it should deterministically produce the same result even if
             // initialized concurrently on different threads.
-            var i = impl;
-            return i != null
-                     ? i
-                     : (impl = (GathererImpl<T, Object, RR>)impl(left, right));
+            GathererImpl<T, Object, RR> i;
+            return (i = impl) != null ? i : (impl = (GathererImpl<T, Object, RR>)impl(left, right));
         }
 
         @Override public Supplier<Object> initializer() {
@@ -557,14 +550,13 @@ public final class Gatherers {
         }
 
         @Override
-        public <RRR> Gatherer<T, ?, RRR> andThen(
-                Gatherer<? super RR, ?, ? extends RRR> that) {
+        public <RRR> Gatherer<T, ?, RRR> andThen(Gatherer<? super RR, ?, ? extends RRR> that) {
             if (that.getClass() == Composite.class) {
                 @SuppressWarnings("unchecked")
-                final var c =
-                    (Composite<? super RR, ?, Object, ?, ? extends RRR>) that;
+                final var c = (Composite<? super RR, ?, Object, ?, ? extends RRR>) that;
                 return left.andThen(right.andThen(c.left).andThen(c.right));
-            } else {
+            }
+            else {
                 return left.andThen(right.andThen(that));
             }
         }
@@ -581,8 +573,8 @@ public final class Gatherers {
             final var rightCombiner = right.combiner();
             final var rightFinisher = right.finisher();
 
-            final var leftStateless = leftInitializer == Gatherer.defaultInitializer();
-            final var rightStateless = rightInitializer == Gatherer.defaultInitializer();
+            final var leftStateless = leftInitializer == Value.DEFAULT;
+            final var rightStateless = rightInitializer == Value.DEFAULT;
 
             final var leftGreedy = leftIntegrator instanceof Integrator.Greedy;
             final var rightGreedy = rightIntegrator instanceof Integrator.Greedy;
@@ -598,36 +590,36 @@ public final class Gatherers {
                     Gatherer.defaultInitializer(),
                     Gatherer.Integrator.ofGreedy((unused, element, downstream) ->
                         leftIntegrator.integrate(
-                                null,
-                                element,
-                                r -> rightIntegrator.integrate(null, r, downstream))
+                            null,
+                            element,
+                            r -> {
+                                rightIntegrator.integrate(null, r, downstream);
+                                return true;
+                            })
                     ),
-                    (leftCombiner == Gatherer.defaultCombiner()
-                    || rightCombiner == Gatherer.defaultCombiner())
-                            ? Gatherer.defaultCombiner()
-                            : Value.DEFAULT.statelessCombiner
+                    (leftCombiner == Value.DEFAULT || rightCombiner == Value.DEFAULT)
+                        ? Gatherer.defaultCombiner()
+                        : Value.DEFAULT.statelessCombiner
                     ,
-                    (leftFinisher == Gatherer.<A,R>defaultFinisher()
-                    && rightFinisher == Gatherer.<AA,RR>defaultFinisher())
+                    (leftFinisher == Value.DEFAULT && rightFinisher == Value.DEFAULT)
                             ? Gatherer.defaultFinisher()
-                            : (unused, downstream) -> {
-                        if (leftFinisher != Gatherer.<A,R>defaultFinisher())
+                            : (_, downstream) -> {
+                        if (leftFinisher != Value.DEFAULT)
                             leftFinisher.accept(
                                     null,
                                     r -> rightIntegrator.integrate(null, r, downstream));
-                        if (rightFinisher != Gatherer.<AA,RR>defaultFinisher())
+                        if (rightFinisher != Value.DEFAULT)
                             rightFinisher.accept(null, downstream);
                     }
                 );
             } else {
-                class State {
+                final class State {
                     final A leftState;
                     final AA rightState;
                     boolean leftProceed;
                     boolean rightProceed;
 
-                    private State(A leftState, AA rightState,
-                                  boolean leftProceed, boolean rightProceed) {
+                    private State(A leftState, AA rightState, boolean leftProceed, boolean rightProceed) {
                         this.leftState = leftState;
                         this.rightState = rightState;
                         this.leftProceed = leftProceed;
@@ -635,17 +627,18 @@ public final class Gatherers {
                     }
 
                     State() {
-                        this(leftStateless ? null : leftInitializer.get(),
-                             rightStateless ? null : rightInitializer.get(),
-                            true, true);
+                        this.leftState = leftStateless ? null : leftInitializer.get();
+                        this.rightState = rightStateless ? null : rightInitializer.get();
+                        this.leftProceed = this.rightProceed = true;
                     }
 
                     State joinLeft(State right) {
                         return new State(
-                                leftStateless ? null : leftCombiner.apply(this.leftState, right.leftState),
-                                rightStateless ? null : rightCombiner.apply(this.rightState, right.rightState),
-                                this.leftProceed && this.rightProceed,
-                                right.leftProceed && right.rightProceed);
+                            leftStateless ? null : leftCombiner.apply(this.leftState, right.leftState),
+                            rightStateless ? null : rightCombiner.apply(this.rightState, right.rightState),
+                            this.leftProceed && this.rightProceed,
+                            right.leftProceed && right.rightProceed
+                        );
                     }
 
                     boolean integrate(T t, Downstream<? super RR> c) {
@@ -662,9 +655,9 @@ public final class Gatherers {
                     }
 
                     void finish(Downstream<? super RR> c) {
-                        if (leftFinisher != Gatherer.<A, R>defaultFinisher())
+                        if (leftFinisher != Value.DEFAULT)
                             leftFinisher.accept(leftState, r -> rightIntegrate(r, c));
-                        if (rightFinisher != Gatherer.<AA, RR>defaultFinisher())
+                        if (rightFinisher != Value.DEFAULT)
                             rightFinisher.accept(rightState, c);
                     }
 
@@ -685,6 +678,7 @@ public final class Gatherers {
                      *       each invocation of integrate() which might prove
                      *       costly.
                      */
+                    @ForceInline
                     public boolean rightIntegrate(R r, Downstream<? super RR> downstream) {
                         // The following logic is highly performance sensitive
                         return (rightGreedy || rightProceed)
@@ -696,16 +690,14 @@ public final class Gatherers {
                 return new GathererImpl<T, State, RR>(
                         State::new,
                         (leftGreedy && rightGreedy)
-                                ? Integrator.<State, T, RR>ofGreedy(State::integrate)
-                                : Integrator.<State, T, RR>of(State::integrate),
-                        (leftCombiner == Gatherer.defaultCombiner()
-                        || rightCombiner == Gatherer.defaultCombiner())
-                                ? Gatherer.defaultCombiner()
-                                : State::joinLeft,
-                        (leftFinisher == Gatherer.<A, R>defaultFinisher()
-                        && rightFinisher == Gatherer.<AA, RR>defaultFinisher())
-                                ? Gatherer.defaultFinisher()
-                                : State::finish
+                            ? Integrator.<State, T, RR>ofGreedy(State::integrate)
+                            : Integrator.<State, T, RR>of(State::integrate),
+                        (leftCombiner == Value.DEFAULT || rightCombiner == Value.DEFAULT)
+                            ? Gatherer.defaultCombiner()
+                            : State::joinLeft,
+                        (leftFinisher == Value.DEFAULT && rightFinisher == Value.DEFAULT)
+                            ? Gatherer.defaultFinisher()
+                            : State::finish
                 );
             }
         }

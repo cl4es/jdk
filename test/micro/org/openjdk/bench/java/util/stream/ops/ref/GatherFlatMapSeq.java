@@ -63,7 +63,7 @@ public class GatherFlatMapSeq {
     @Param({"10", "100", "1000"})
     private int size;
 
-    private Function<Long, Stream<Long>> fun;
+    private Function<Long, Stream<Long>> fun1, fun2;
 
     private Gatherer<Long, ?, Long> gather_flatMap;
 
@@ -75,24 +75,30 @@ public class GatherFlatMapSeq {
         for(int i = 0;i < size;++i)
             cachedInputArray[i] = Long.valueOf(i);
 
-        fun = new Function<Long, Stream<Long>>() { @Override public Stream<Long> apply(Long l) {
+        fun1 =
+            new Function<Long, Stream<Long>>() { @Override public Stream<Long> apply(Long l) {
                 return Arrays.stream(cachedInputArray);
             } };
 
-        gather_flatMap = flatMap(fun);
+        fun2 =
+            new Function<Long, Stream<Long>>() { @Override public Stream<Long> apply(Long l) {
+                return Stream.gStream(cachedInputArray);
+            } };
+
+        gather_flatMap = flatMap(fun1);
     }
 
     @Benchmark
     public long seq_invoke_baseline() {
         return Arrays.stream(cachedInputArray)
-                .flatMap(fun)
+                .flatMap(fun1)
                 .collect(LongAccumulator::new, LongAccumulator::add, LongAccumulator::merge).get();
     }
 
     @Benchmark
     public long seq_invoke_newimpl() {
-        return Stream.gStream(Arrays.spliterator(cachedInputArray))
-                .flatMap(fun)
+        return Stream.gStream(cachedInputArray)
+                .flatMap(fun2)
                 .collect(LongAccumulator::new, LongAccumulator::add, LongAccumulator::merge).get();
     }
 

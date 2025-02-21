@@ -267,7 +267,7 @@ public interface Gatherer<T, A, R> {
      */
     default <RR> Gatherer<T, ?, RR> andThen(Gatherer<? super R, ?, ? extends RR> that) {
         Objects.requireNonNull(that);
-        return Gatherers.Composite.of(this, that);
+        return new Gatherers.Composite<>(this, that);
     }
 
     /**

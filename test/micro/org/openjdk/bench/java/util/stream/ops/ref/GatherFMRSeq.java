@@ -94,7 +94,7 @@ public class GatherFMRSeq {
 
     @Benchmark
     public long seq_fmr_newimpl() {
-        return Stream.gStream(Arrays.spliterator(cachedInputArray))
+        return Stream.gStream(cachedInputArray)
             .filter(evens)
             .map(squared)
             .collect(LongAccumulator::new, LongAccumulator::add, LongAccumulator::merge).get();
