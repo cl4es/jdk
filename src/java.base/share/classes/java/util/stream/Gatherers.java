@@ -527,19 +527,19 @@ public final class Gatherers {
         }
 
         @Override public Supplier<Object> initializer() {
-            return impl().initializer();
+            return impl().initializer;
         }
 
         @Override public Integrator<Object, T, RR> integrator() {
-            return impl().integrator();
+            return impl().integrator;
         }
 
         @Override public BinaryOperator<Object> combiner() {
-            return impl().combiner();
+            return impl().combiner;
         }
 
         @Override public BiConsumer<Object, Downstream<? super RR>> finisher() {
-            return impl().finisher();
+            return impl().finisher;
         }
 
         @Override

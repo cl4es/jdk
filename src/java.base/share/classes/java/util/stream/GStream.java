@@ -57,6 +57,8 @@ import java.util.function.ToLongFunction;
 
 final class GStream {
 
+    static final boolean FUSION = false;
+
     private GStream() { throw new UnsupportedOperationException(); }
 
     private final static class Cell<T> {
@@ -76,11 +78,6 @@ final class GStream {
             this.value = value;
             if (!this.hasValue)
                 this.hasValue = true;
-        }
-
-        Cell<T> obtrude(T value) {
-            this.value = value;
-            return this;
         }
 
         Cell<T> preferRight(Cell<T> right) {
@@ -159,6 +156,9 @@ final class GStream {
 
         @Override
         public <RR> Gatherer<T, ?, RR> andThen(Gatherer<? super R, ?, ? extends RR> that) {
+            if (!FUSION)
+                return Gatherer.super.andThen(that);
+
             if (that.getClass() == MappingGatherer.class) { // Implicit null-check of that
                 @SuppressWarnings("unchecked")
                 var thatMapper = ((MappingGatherer<R,RR>)that).mapper;
@@ -188,12 +188,15 @@ final class GStream {
         @ForceInline
         @Override
         public boolean integrate(Void state, TR element, Gatherer.Downstream<? super TR> downstream) {
-            return predicate.test(element) ? downstream.push(element) : true;
+            return !predicate.test(element) || downstream.push(element);
         }
 
         @Override
         @SuppressWarnings("unchecked")
         public <RR> Gatherer<TR, ?, RR> andThen(Gatherer<? super TR, ?, ? extends RR> that) {
+            if (!FUSION)
+                return Gatherer.super.andThen(that);
+
             var thatClass = that.getClass(); // Implicit null-check of that
             if (thatClass == FilteringGatherer.class) {
                 var first = predicate;
@@ -224,8 +227,10 @@ final class GStream {
         @Override public Void apply(Void left, Void right) { return left; }
 
         @Override
-        public <RR> Gatherer<T, ?, RR> andThen(Gatherer<? super R, ?, ?
-            extends RR> that) {
+        public <RR> Gatherer<T, ?, RR> andThen(Gatherer<? super R, ?, ? extends RR> that) {
+            if (!FUSION)
+                return Gatherer.super.andThen(that);
+
             if (that.getClass() == MappingGatherer.class) { // Implicit null-check of that
                 @SuppressWarnings("unchecked")
                 var thatMapper = ((MappingGatherer<R, RR>)that).mapper;
@@ -237,7 +242,7 @@ final class GStream {
         @ForceInline
         @Override
         public boolean integrate(Void state, T element, Gatherer.Downstream<? super R> downstream) {
-            return predicate.test(element) ? downstream.push(mapper.apply(element)) : true;
+            return !predicate.test(element) || downstream.push(mapper.apply(element));
         }
     }
 
@@ -260,12 +265,12 @@ final class GStream {
 //            try(Stream<? extends R> s = mapper.apply(element)) {
 //                return s != null ? s.sequential().allMatch(downstream::push) : true;
 //            }
-            try (Stream<? extends R> s = mapper.apply(element)) {
-                if (s != null) {
+            try (var s = mapper.apply(element)) {
+                if (s != null)
                     s.sequential().spliterator().forEachRemaining(e -> {
                         if (!downstream.push(e)) throw SHORT_CIRCUIT;
                     });
-                }
+
                 return true;
             } catch (RuntimeException e) {
                 if (e == SHORT_CIRCUIT)
@@ -351,20 +356,17 @@ final class GStream {
             }
         }
 
-        @SuppressWarnings("unchecked")
         @ForceInline
+        @SuppressWarnings("unchecked")
         private <X> Spliterator<X> resolveSpliterator() {
             return ((flags & DEFERRED) != DEFERRED)
                 ? (Spliterator<X>) source
                 : ((Supplier<Spliterator<X>>)source).get();
         }
 
-        @SuppressWarnings("unchecked")
         @ForceInline
+        @SuppressWarnings("unchecked")
         private <X> Gatherer<X,?,T> resolveGatherer() {
-// TODO parked experiment to auto-unbox composites
-//            Gatherer<X,?,T> g;
-//            return (((g = (Gatherer<X,?,T>)gatherer).getClass() == Gatherers.Composite.class) ? ((Gatherers.Composite<X,?,?,?,T>)g).impl() : g);
             return (Gatherer<X, ?, T>) this.gatherer;
         }
 
