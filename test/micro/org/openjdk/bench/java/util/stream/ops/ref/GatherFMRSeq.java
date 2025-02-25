@@ -49,7 +49,8 @@ import static org.openjdk.bench.java.util.stream.ops.ref.BenchmarkGathererImpls.
  */
 @BenchmarkMode(Mode.Throughput)
 @Warmup(iterations = 4, time = 5, timeUnit = TimeUnit.SECONDS)
-@Measurement(iterations = 7, time = 5, timeUnit = TimeUnit.SECONDS)
+@Measurement(iterations = 4, time = 5, timeUnit = TimeUnit.SECONDS)
+//@Fork(value = 1, jvmArgsPrepend="-XX:+UnlockExperimentalVMOptions -XX:+UseGraalJIT")
 @Fork(value = 1)
 @OutputTimeUnit(TimeUnit.SECONDS)
 @State(Scope.Thread)
@@ -84,13 +85,13 @@ public class GatherFMRSeq {
         gathered = ga_filter_evens.andThen(ga_map_squared);
     }
 
-    @Benchmark
-    public long seq_fmr_baseline() {
-        return Arrays.stream(cachedInputArray)
-                .filter(evens)
-                .map(squared)
-                .collect(LongAccumulator::new, LongAccumulator::add, LongAccumulator::merge).get();
-    }
+//    @Benchmark
+//    public long seq_fmr_baseline() {
+//        return Arrays.stream(cachedInputArray)
+//                .filter(evens)
+//                .map(squared)
+//                .collect(LongAccumulator::new, LongAccumulator::add, LongAccumulator::merge).get();
+//    }
 
     @Benchmark
     public long seq_fmr_newimpl() {

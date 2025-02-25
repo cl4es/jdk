@@ -503,20 +503,13 @@ public final class Gatherers {
             @Override Integrator<A, T, R> integrator,
             @Override BinaryOperator<A> combiner,
             @Override BiConsumer<A, Downstream<? super R>> finisher) implements Gatherer<T, A, R> {
-
-        GathererImpl {
-            Objects.requireNonNull(initializer,"initializer");
-            Objects.requireNonNull(integrator, "integrator");
-            Objects.requireNonNull(combiner, "combiner");
-            Objects.requireNonNull(finisher, "finisher");
-        }
     }
 
     static final class Composite<T, A, R, AA, RR> implements Gatherer<T, Object, RR> {
         private final Gatherer<T, A, ? extends R> left;
         private final Gatherer<? super R, AA, ? extends RR> right;
         // FIXME change `impl` to a computed constant when available
-        private GathererImpl<T, Object, RR> impl;
+        @Stable private GathererImpl<T, Object, RR> impl;
 
         Composite(Gatherer<T, A, ? extends R> left, Gatherer<? super R, AA, ? extends RR> right) {
             this.left = left;
@@ -525,7 +518,7 @@ public final class Gatherers {
 
         @ForceInline
         @SuppressWarnings("unchecked")
-        private GathererImpl<T, Object, RR> impl() {
+        GathererImpl<T, Object, RR> impl() {
             // ATTENTION: this method currently relies on a "benign" data-race
             // as it should deterministically produce the same result even if
             // initialized concurrently on different threads.
@@ -563,21 +556,22 @@ public final class Gatherers {
 
         static final <T, A, R, AA, RR> GathererImpl<T, ?, RR> impl(
                 Gatherer<T, A, R> left, Gatherer<? super R, AA, RR> right) {
-            final var leftInitializer = left.initializer();
-            final var leftIntegrator = left.integrator();
-            final var leftCombiner = left.combiner();
-            final var leftFinisher = left.finisher();
+
+            final var leftInitializer  = left.initializer();
+            final var leftIntegrator   = left.integrator();
+            final var leftCombiner     = left.combiner();
+            final var leftFinisher     = left.finisher();
 
             final var rightInitializer = right.initializer();
-            final var rightIntegrator = right.integrator();
-            final var rightCombiner = right.combiner();
-            final var rightFinisher = right.finisher();
+            final var rightIntegrator  = right.integrator();
+            final var rightCombiner    = right.combiner();
+            final var rightFinisher    = right.finisher();
 
-            final var leftStateless = leftInitializer == Value.DEFAULT;
-            final var rightStateless = rightInitializer == Value.DEFAULT;
+            final var leftStateless    = leftInitializer == Value.DEFAULT;
+            final var rightStateless   = rightInitializer == Value.DEFAULT;
 
-            final var leftGreedy = leftIntegrator instanceof Integrator.Greedy;
-            final var rightGreedy = rightIntegrator instanceof Integrator.Greedy;
+            final var leftGreedy       = leftIntegrator instanceof Integrator.Greedy;
+            final var rightGreedy      = rightIntegrator instanceof Integrator.Greedy;
 
             /*
              * For pairs of stateless and greedy Gatherers, we can optimize
@@ -586,30 +580,28 @@ public final class Gatherers {
              * performance improvements.
              */
             if (leftStateless && rightStateless && leftGreedy && rightGreedy) {
+                record StatelessIntegrator<T,R,RR>(
+                    Integrator<?, T, R> left, Integrator<?, ? super R, RR> right
+                ) implements Integrator.Greedy<Void, T, RR> {
+                    @ForceInline
+                    @Override
+                    public boolean integrate(Void state, T element, Downstream<? super RR> downstream) {
+                        return left.integrate(null, element, r -> right.integrate(null, r, downstream));
+                    }
+                }
                 return new GathererImpl<>(
                     Gatherer.defaultInitializer(),
-                    Gatherer.Integrator.ofGreedy((unused, element, downstream) ->
-                        leftIntegrator.integrate(
-                            null,
-                            element,
-                            r -> {
-                                rightIntegrator.integrate(null, r, downstream);
-                                return true;
-                            })
-                    ),
+                    new StatelessIntegrator<>(leftIntegrator, rightIntegrator),
                     (leftCombiner == Value.DEFAULT || rightCombiner == Value.DEFAULT)
                         ? Gatherer.defaultCombiner()
-                        : Value.DEFAULT.statelessCombiner
-                    ,
+                        : Value.DEFAULT.statelessCombiner,
                     (leftFinisher == Value.DEFAULT && rightFinisher == Value.DEFAULT)
-                            ? Gatherer.defaultFinisher()
-                            : (_, downstream) -> {
-                        if (leftFinisher != Value.DEFAULT)
-                            leftFinisher.accept(
-                                    null,
-                                    r -> rightIntegrator.integrate(null, r, downstream));
-                        if (rightFinisher != Value.DEFAULT)
-                            rightFinisher.accept(null, downstream);
+                        ? Gatherer.defaultFinisher()
+                        : (_, downstream) -> {
+                            if (leftFinisher != Value.DEFAULT)
+                                leftFinisher.accept(null, r -> rightIntegrator.integrate(null, r, downstream));
+                            if (rightFinisher != Value.DEFAULT)
+                                rightFinisher.accept(null, downstream);
                     }
                 );
             } else {

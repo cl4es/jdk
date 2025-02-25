@@ -24,6 +24,8 @@
  */
 package java.util.stream;
 
+import jdk.internal.vm.annotation.ForceInline;
+
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
@@ -1455,6 +1457,7 @@ public interface Stream<T> extends BaseStream<T, Stream<T>> {
      * @return horrors
      * @param <T> kind of horrors
      */
+    @ForceInline
     public static<T> Stream<T> gStream(Spliterator<? extends T> spliterator) {
         Objects.requireNonNull(spliterator, "spliterator");
         return new GStream.OfRef<>(spliterator);
