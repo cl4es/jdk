@@ -85,13 +85,13 @@ public class GatherFMRSeq {
         gathered = ga_filter_evens.andThen(ga_map_squared);
     }
 
-//    @Benchmark
-//    public long seq_fmr_baseline() {
-//        return Arrays.stream(cachedInputArray)
-//                .filter(evens)
-//                .map(squared)
-//                .collect(LongAccumulator::new, LongAccumulator::add, LongAccumulator::merge).get();
-//    }
+    @Benchmark
+    public long seq_fmr_baseline() {
+        return Arrays.stream(cachedInputArray)
+                .filter(evens)
+                .map(squared)
+                .collect(LongAccumulator::new, LongAccumulator::add, LongAccumulator::merge).get();
+    }
 
     @Benchmark
     public long seq_fmr_newimpl() {
