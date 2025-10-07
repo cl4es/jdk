@@ -26,17 +26,13 @@
 package com.sun.tools.javac.code;
 
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Consumer;
-import java.util.stream.Stream;
 
-import javax.tools.DiagnosticListener;
 import javax.tools.JavaFileObject;
 
 import com.sun.tools.javac.tree.EndPosTable;
@@ -126,9 +122,8 @@ public class LintMapper {
      */
     public Optional<Lint> lintAt(JavaFileObject sourceFile, DiagnosticPosition pos) {
         initializeIfNeeded();
-        return Optional.of(sourceFile)
-          .map(fileInfoMap::get)
-          .flatMap(fileInfo -> fileInfo.lintAt(pos));
+        var mapping = fileInfoMap.get(sourceFile);
+        return mapping != null ? mapping.lintAt(pos) : Optional.empty();
     }
 
     /**
@@ -185,10 +180,11 @@ public class LintMapper {
         // After parsing: Add top-level declarations to our "unmappedDecls" list
         FileInfo(Lint rootLint, JCCompilationUnit tree) {
             rootRange = new LintRange(rootLint);
-            tree.defs.stream()
-              .filter(this::isTopLevelDecl)
-              .map(decl -> new Span(decl, tree.endPositions))
-              .forEach(unmappedDecls::add);
+            for (JCTree decl : tree.defs) {
+                if (isTopLevelDecl(decl)) {
+                    unmappedDecls.add(new Span(decl, tree.endPositions));
+                }
+            }
         }
 
         // After attribution: Discard the span from "unmappedDecls" and populate the declaration's subtree under "rootRange"
@@ -205,7 +201,12 @@ public class LintMapper {
 
         // Find the most specific Lint configuration applying to the given position, unless the position has not been mapped yet
         Optional<Lint> lintAt(DiagnosticPosition pos) {
-            boolean mapped = unmappedDecls.stream().noneMatch(span -> span.contains(pos));
+            boolean mapped = true;
+            for (var span : unmappedDecls) {
+                if (span.contains(pos)) {
+                    mapped = false;
+                }
+            }
             return mapped ? Optional.of(rootRange.bestMatch(pos).lint) : Optional.empty();
         }
 
@@ -262,12 +263,20 @@ public class LintMapper {
 
         // Find the most specific node in this tree (including me) that contains the given position, if any
         LintRange bestMatch(DiagnosticPosition pos) {
-            return children.stream()
-              .filter(child -> child.span.contains(pos))    // don't recurse unless necessary
-              .map(child -> child.bestMatch(pos))
-              .filter(Objects::nonNull)
-              .reduce((a, b) -> a.span.contains(b.span) ? b : a)
-              .orElseGet(() -> span.contains(pos) ? this : null);
+            LintRange bestMatch = null;
+            for (var child : children) {
+                if (child.span.contains(pos)) { // don't recurse unless necessary
+                    child = child.bestMatch(pos);
+                    if (child == null) continue;
+                    if (bestMatch == null || bestMatch.span.contains(child.span)) {
+                        bestMatch = child;
+                    }
+                }
+            }
+            if (bestMatch == null) {
+                return span.contains(pos) ? this : null;
+            }
+            return bestMatch;
         }
 
         // Populate a sparse subtree corresponding to the given nested declaration.
