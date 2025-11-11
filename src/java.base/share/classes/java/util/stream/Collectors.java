@@ -240,13 +240,18 @@ public final class Collectors {
      * @return a {@code Collector} which collects all the input elements into a
      * {@code List}, in encounter order
      */
+    @SuppressWarnings({"unchecked"})
     public static <T>
     Collector<T, ?, List<T>> toList() {
-        return new CollectorImpl<>(ArrayList::new, List::add,
-                                   (left, right) -> { left.addAll(right); return left; },
-                                   CH_ID);
+        return (CollectorImpl<T, ?, List<T>>)ListCollector.INSTANCE;
     }
 
+    private static class ListCollector {
+        private static final CollectorImpl<?, ?, ?> INSTANCE
+                = new CollectorImpl<>(ArrayList::new, List::add,
+                                      (left, right) -> { left.addAll(right); return left; },
+                                      CH_ID);
+    }
     /**
      * Returns a {@code Collector} that accumulates the input elements into an
      * <a href="../List.html#unmodifiable">unmodifiable List</a> in encounter
